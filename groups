@@ -1,3 +1,5 @@
 # UUID                    	Group Name
 #
+ldap:eng                  	ldap/eng
+mdb:all-person-users      	mdb/all-person-users
 mdb:app-engine-geryon-team	mdb/app-engine-geryon-team
