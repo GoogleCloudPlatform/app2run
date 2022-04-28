@@ -1,0 +1,64 @@
+---
+unsupported:
+- path:
+    admin_api: betaSettings.cloudSqlInstances
+    app_yaml: beta_settings.cloud_sql_instances
+  severity: major
+  reason: CR does not support TCP based CloudSQL instance configs.
+- path:
+    admin_api: volumes
+    app_yaml: volumes
+  severity: major
+  reason: CR does not support tmpfs volume mounts.
+- path:
+    admin_api: network.forwardedPorts
+    app_yaml: network.forwarded_ports
+  severity: major
+  reason: CR does not support port forwarding. No clients can connect to the app using the forwarded ports.
+- path:
+    admin_api: inboundServices
+    app_yaml: inbound_services
+  severity: major
+  reason: CR does not support GAE bundled services.
+- path:
+    admin_api: handlers
+    app_yaml: handlers
+  severity: major
+  reason: No support for routing based on url patterns.
+- path:
+    admin_api: errorHandlers
+    app_yaml: error_handlers
+  severity: major
+  reason: No support for routing based on url patterns.
+- path:
+    admin_api: appEngineApis
+    app_yaml: app_engine_apis
+  severity: major
+  reason: No App Engine bundled services.
+- path:
+    admin_api: buildEnvVariables
+    app_yaml: build_env_variables
+  severity: major
+  reason: No support for passing environment vars to buildpacks at the time of building.
+- path:
+    admin_api: diskGb
+    app_yaml: disk_size_gb
+  severity: minor
+  reason: No support for custom disk size.
+range_limited:
+- path:
+    admin_api: resources.cpu
+    app_yaml: resources.cpu
+  range:
+    max: 8
+    min: 0
+  severity: major
+  reason: CR supports max 8 CPUs.
+- path:
+    admin_api: resources.memoryGb
+    app_yaml: resources.memory_gb
+  range:
+    max: 32
+    min: 0
+  severity: major
+  reason: CR supports max 32Gi of memory.
