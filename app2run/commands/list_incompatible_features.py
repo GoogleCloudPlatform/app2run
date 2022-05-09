@@ -3,68 +3,11 @@
 the `app2run list-incompatible-features` command.
 """
 
-from dataclasses import dataclass
-from enum import Enum
-from os import path as os_path
 from typing import Any, Dict, List
 import click
 import yaml
-
-_CONFIG_PATH = os_path.join(os_path.dirname(__file__), '../config/incompatible_features.yaml')
-
-class FeatureType(Enum):
-    """Enum of feature types."""
-    UNSUPPORTED = "unsupported"
-    RANGE_LIMITED = "range_limited"
-
-class InputType(Enum):
-    """Enum of input types."""
-    APP_YAML = "app_yaml"
-
-@dataclass
-class Range:
-    """Range represents the range limit of a RangeLimitFeature."""
-    min: int
-    max: int
-
-@dataclass
-class Path:
-    """Paths reprents the path variants for appyaml and api input data."""
-    admin_api: str
-    app_yaml: str
-
-@dataclass
-class UnsupportedFeature:
-    """Feature represents an unsupported Feature."""
-    path: Path
-    severity: str
-    reason: str
-
-@dataclass
-class RangeLimitFeature(UnsupportedFeature):
-    """RangeLimitFeature presents a range_limited Feature,
-    it extends UnsupportedFeature and adds addtional field of range limit."""
-    range: Range
-
-    def is_within_range(self, val):
-        """Check if the given value is within range limit."""
-        return self.range['min'] <= val <= self.range['max']
-
-@dataclass()
-class FeatureConfig:
-    """FeatureConfig represents the incompatible features configuration."""
-    unsupported: List[UnsupportedFeature]
-    range_limited: List[RangeLimitFeature]
-
-    def __post_init__(self):
-        unsupported_data = []
-        for feature in self.unsupported:
-            unsupported_data.append(UnsupportedFeature(**feature))
-        self.unsupported = unsupported_data
-        range_limited_data = []
-        for feature in self.range_limited:
-            range_limited_data.append(RangeLimitFeature(**feature))
-        self.range_limited = range_limited_data
+from app2run.config.feature_config_loader import FeatureConfig, get_feature_config, \
+    InputType, UnsupportedFeature
 
 @click.command(short_help="List incompatible App Engine features to migrate to Cloud Run.")
 @click.option('-a', '--appyaml', default='app.yaml', show_default=True,
@@ -86,10 +29,7 @@ def _check_for_incompatibility(input_data: Dict, input_type: InputType) -> List[
     one-level key-value pairs and compare it with the configured list of incompatible features."""
     incompatible_list : List[UnsupportedFeature] = []
 
-    read_yaml = _read_yaml_file()
-    parsed_yaml_dict = _parse_yaml_file(read_yaml)
-    feature_config = _dict_to_features(parsed_yaml_dict)
-
+    feature_config : FeatureConfig = get_feature_config()
     unsupported_features = _get_feature_list_by_input_type(input_type, feature_config.unsupported)
     range_limited_features =  _get_feature_list_by_input_type(input_type, \
         feature_config.range_limited)
@@ -143,20 +83,6 @@ def _get_feature_list_by_input_type(input_type: InputType, features: List[Unsupp
         path = i.path[input_type.value]
         feature_dict[path] = i
     return feature_dict
-
-def _read_yaml_file():
-    """Read the config yaml file of incompabilbe features."""
-    with open(_CONFIG_PATH, \
-        'r', encoding='utf8') as incompatible_features_yaml_file:
-        return incompatible_features_yaml_file.read()
-
-def _parse_yaml_file(yaml_string: str) -> Dict[Any, Any]:
-    """Parse the input string as yaml file."""
-    return yaml.safe_load(yaml_string)
-
-def _dict_to_features(parsed_yaml: Dict[Any, Any]) -> FeatureConfig:
-    """Convert the input dictionary into FeatureConfig type."""
-    return FeatureConfig(**parsed_yaml)
 
 def _flatten_keys(input_data: Dict, parent_path: str) -> Dict[str, Any]:
     """Flattern nested paths (root to leaf) of a dictionary. For example:
