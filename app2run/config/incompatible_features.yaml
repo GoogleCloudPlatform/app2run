@@ -4,22 +4,22 @@ unsupported:
     admin_api: betaSettings.cloudSqlInstances
     app_yaml: beta_settings.cloud_sql_instances
   severity: major
-  reason: CR does not support TCP based CloudSQL instance configs.
+  reason: Cloud Run does not support TCP based CloudSQL instance configs.
 - path:
     admin_api: volumes
     app_yaml: volumes
   severity: major
-  reason: CR does not support tmpfs volume mounts.
+  reason: Cloud Run does not support tmpfs volume mounts.
 - path:
     admin_api: network.forwardedPorts
     app_yaml: network.forwarded_ports
   severity: major
-  reason: CR does not support port forwarding. No clients can connect to the app using the forwarded ports.
+  reason: Cloud Run does not support port forwarding. No clients can connect to the app using the forwarded ports.
 - path:
     admin_api: inboundServices
     app_yaml: inbound_services
   severity: major
-  reason: CR does not support GAE bundled services.
+  reason: Cloud Run does not support GAE bundled services.
 - path:
     admin_api: handlers
     app_yaml: handlers
@@ -53,7 +53,7 @@ range_limited:
     max: 8
     min: 0
   severity: major
-  reason: CR supports max 8 CPUs.
+  reason: Cloud Run supports max 8 CPUs.
 - path:
     admin_api: resources.memoryGb
     app_yaml: resources.memory_gb
@@ -61,4 +61,15 @@ range_limited:
     max: 32
     min: 0
   severity: major
-  reason: CR supports max 32Gi of memory.
+  reason: Cloud Run supports max 32Gi of memory.
+value_limited:
+- path:
+    admin_api: runtimeConfig.pythonVersion
+    app_yaml: runtime_config.python_version
+  known_values:
+    - 2
+    - 3
+  allowed_values:
+    - 3
+  severity: major
+  reason: Cloud Run supports Python 3 runtime only.

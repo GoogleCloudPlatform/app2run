@@ -45,6 +45,7 @@ beta_settings:
             assert result.exit_code == 0
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
+            assert "severity: major" in result.output
             assert "path: beta_settings.cloud_sql_instances" in result.output
 
 def test_appyaml_volumes_unsupported():
@@ -59,6 +60,7 @@ volumes: test
             assert result.exit_code == 0
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
+            assert "severity: major" in result.output
             assert "path: volumes" in result.output
 
 def test_appyaml_inbound_services_unsupported():
@@ -73,6 +75,7 @@ inbound_services: test
             assert result.exit_code == 0
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
+            assert "severity: major" in result.output
             assert "path: inbound_services" in result.output
 
 def test_appyaml_handlers_unsupported():
@@ -87,6 +90,7 @@ handlers: test
             assert result.exit_code == 0
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
+            assert "severity: major" in result.output
             assert "path: handlers" in result.output
 
 def test_appyaml_error_handlers_unsupported():
@@ -101,6 +105,7 @@ error_handlers: test
             assert result.exit_code == 0
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
+            assert "severity: major" in result.output
             assert "path: error_handlers" in result.output
 
 def test_appyaml_app_engine_apis_unsupported():
@@ -115,6 +120,7 @@ app_engine_apis: test
             assert result.exit_code == 0
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
+            assert "severity: major" in result.output
             assert "path: app_engine_apis" in result.output
 
 def test_appyaml_build_env_variables_unsupported():
@@ -129,6 +135,7 @@ build_env_variables: test
             assert result.exit_code == 0
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
+            assert "severity: major" in result.output
             assert "path: build_env_variables" in result.output
 
 def test_appyaml_disk_size_gb_unsupported():
@@ -143,6 +150,7 @@ disk_size_gb: test
             assert result.exit_code == 0
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
+            assert "severity: minor" in result.output
             assert "path: disk_size_gb" in result.output
 
 def test_appyaml_network_forwarded_ports_unsupported():
@@ -158,6 +166,7 @@ network:
             assert result.exit_code == 0
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
+            assert "severity: major" in result.output
             assert "path: network.forwarded_ports" in result.output
 
 def test_appyaml_cpu_exceed_range_limited():
@@ -173,6 +182,7 @@ resources:
             assert result.exit_code == 0
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
+            assert "severity: major" in result.output
             assert "path: resources.cpu" in result.output
 
 def test_appyaml_cpu_within_range_limited():
@@ -201,6 +211,7 @@ resources:
             assert result.exit_code == 0
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
+            assert "severity: major" in result.output
             assert "path: resources.memory_gb" in result.output
 
 def test_appyaml_memory_within_range_limited():
@@ -215,3 +226,49 @@ resources:
             result = runner.invoke(cli, ['list-incompatible-features'])
             assert result.exit_code == 0
             assert result.output == "No incompatibilities found.\n"
+
+def test_appyaml_runtime_config_python_version_2_value_limited():
+    """test_appyaml_runtime_config_python_version_2_value_limited"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime_config:
+  python_version: 2
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['list-incompatible-features'])
+            assert result.exit_code == 0
+            assert "major: 1" in result.output
+            assert "incompatible_features" in result.output
+            assert "severity: major" in result.output
+            assert "path: runtime_config.python_version" in result.output
+
+def test_appyaml_runtime_config_python_version_3_value_limited():
+    """test_appyaml_runtime_config_python_version_3_value_limited"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime_config:
+  python_version: 3
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['list-incompatible-features'])
+            assert result.exit_code == 0
+            assert result.output == "No incompatibilities found.\n"
+
+def test_appyaml_runtime_config_unknonw_value_limited():
+    """test_appyaml_runtime_config_python_version_3_value_limited"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime_config:
+  python_version: 4
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['list-incompatible-features'])
+            assert result.exit_code == 0
+            assert "major: 1" in result.output
+            assert "incompatible_features" in result.output
+            assert "path: runtime_config.python_version" in result.output
+            assert "severity: unknown" in result.output
+            assert "4 is not a known value for runtime_config.python_version" in result.output

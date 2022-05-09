@@ -48,23 +48,47 @@ class RangeLimitFeature(UnsupportedFeature):
         """Check if the given value is within range limit."""
         return self.range['min'] <= val <= self.range['max']
 
+@dataclass
+class ValueLimitFeature(UnsupportedFeature):
+    """ValueLimitFeature presents a value_limited Feature, it extends
+    UnsupportedFeature and adds additional fields to validate compatible value."""
+    allowed_values: List[str]
+    known_values: List[str]
+
+    def is_value_known(self, val):
+        """Check if the given value is known in Cloud Run."""
+        return val in self.known_values
+
+    def is_value_allowed(self, val):
+        """Check if the given value is allowed in Cloud Run."""
+        return val in self.allowed_values
+
 @dataclass()
 class FeatureConfig:
     """FeatureConfig represents the incompatible features configuration."""
     unsupported: List[UnsupportedFeature]
     range_limited: List[RangeLimitFeature]
+    value_limited: List[ValueLimitFeature]
 
     def __post_init__(self):
         unsupported_data = [UnsupportedFeature(**f) for f in self.unsupported]
         self.unsupported = unsupported_data
         range_limited_data = [RangeLimitFeature(**f) for f in self.range_limited]
         self.range_limited = range_limited_data
+        value_limited_data = [ValueLimitFeature(**f) for f in self.value_limited]
+        self.value_limited = value_limited_data
 
 def get_feature_config() -> FeatureConfig:
     """Read config data from features yaml and convert data into dataclass types."""
     read_yaml = _read_yaml_file()
     parsed_yaml_dict = _parse_yaml_file(read_yaml)
     return _dict_to_features(parsed_yaml_dict)
+
+def create_unknown_value_feature(feature: UnsupportedFeature, val: str, input_type: InputType) \
+    -> UnsupportedFeature:
+    """Create an instance of UnsupportedFeature for unknown feature value."""
+    reason : str = f'{val} is not a known value for {feature.path[input_type.value]}.'
+    return UnsupportedFeature(feature.path, 'unknown',  reason)
 
 def _read_yaml_file() -> str:
     """Read the config yaml file of incompabilbe features."""

@@ -6,8 +6,8 @@ the `app2run list-incompatible-features` command.
 from typing import Any, Dict, List
 import click
 import yaml
-from app2run.config.feature_config_loader import FeatureConfig, get_feature_config, \
-    InputType, UnsupportedFeature
+from app2run.config.feature_config_loader import create_unknown_value_feature, FeatureConfig, \
+    get_feature_config, InputType, UnsupportedFeature
 
 @click.command(short_help="List incompatible App Engine features to migrate to Cloud Run.")
 @click.option('-a', '--appyaml', default='app.yaml', show_default=True,
@@ -33,6 +33,8 @@ def _check_for_incompatibility(input_data: Dict, input_type: InputType) -> List[
     unsupported_features = _get_feature_list_by_input_type(input_type, feature_config.unsupported)
     range_limited_features =  _get_feature_list_by_input_type(input_type, \
         feature_config.range_limited)
+    value_restricted_features = _get_feature_list_by_input_type(input_type, \
+        feature_config.value_limited)
 
     input_key_value_pairs = _flatten_keys(input_data, "")
 
@@ -45,6 +47,13 @@ def _check_for_incompatibility(input_data: Dict, input_type: InputType) -> List[
             feature = range_limited_features[key]
             if not feature.is_within_range(val):
                 incompatible_list.append(range_limited_features[key])
+        # Check for value_restricted features.
+        elif key in value_restricted_features:
+            feature = value_restricted_features[key]
+            if not feature.is_value_known(val):
+                incompatible_list.append(create_unknown_value_feature(feature, val, input_type))
+            elif not feature.is_value_allowed(val):
+                incompatible_list.append(value_restricted_features[key])
 
     return incompatible_list
 
