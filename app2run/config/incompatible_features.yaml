@@ -62,6 +62,68 @@ range_limited:
     min: 0
   severity: major
   reason: Cloud Run supports max 32Gi of memory.
+- path:
+    admin_api: automaticScaling.minInstances
+    app_yaml: automatic_scaling.min_instances
+  range:
+    max: 1000
+    min: 0
+  severity: major
+  reason: Cloud Run supports automatic scaling values between 0 and 1000.
+  flags:
+  - --min-instances
+- path:
+    admin_api: automaticScaling.maxInstances
+    app_yaml: automatic_scaling.max_instances
+  range:
+    max: 1000
+    min: 0
+  severity: major
+  reason: Cloud Run supports automatic scaling values between 0 and 1000.
+  flags:
+  - --max-instances
+- path:
+    admin_api: automaticScaling.minNumInstances
+    app_yaml: automatic_scaling.min_num_instances
+  range:
+    max: 1000
+    min: 0
+  severity: major
+  reason: Cloud Run supports automatic scaling values between 0 and 1000.
+  flags:
+  - --min-instances
+- path:
+    admin_api: automaticScaling.maxNumInstances
+    app_yaml: automatic_scaling.max_num_instances
+  range:
+    max: 1000
+    min: 0
+  severity: major
+  reason: Cloud Run supports automatic scaling values between 0 and 1000.
+  flags:
+  - --max-instances
+- path:
+    admin_api: manualScaling.instances
+    app_yaml: manual_scaling.instances
+  range:
+    max: 1000
+    min: 0
+  severity: major
+  reason: Cloud Run supports manual scaling values between 0 and 1000.
+  flags:
+  - --min-instances
+  - --max-instances
+- path:
+    admin_api: basicScaling.maxInstances
+    app_yaml: basic_scaling.max_instances
+  range:
+    max: 1000
+    min: 0
+  severity: major
+  reason: Cloud Run supports basic scaling values between 0 and 1000.
+  flags:
+  - --min-instances
+  - --max-instances
 value_limited:
 - path:
     admin_api: runtimeConfig.pythonVersion

@@ -1,3 +1,4 @@
+"""Setup file for app2run package."""
 from setuptools import setup, find_packages
 
 setup(

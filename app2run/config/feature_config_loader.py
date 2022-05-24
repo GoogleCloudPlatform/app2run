@@ -43,6 +43,7 @@ class RangeLimitFeature(UnsupportedFeature):
     """RangeLimitFeature represents a range_limited Feature,
     it extends UnsupportedFeature and adds addtional field of range limit."""
     range: Range
+    flags: List[str] = None
 
     def is_within_range(self, val):
         """Check if the given value is within range limit."""
@@ -89,6 +90,38 @@ def create_unknown_value_feature(feature: UnsupportedFeature, val: str, input_ty
     """Create an instance of UnsupportedFeature for unknown feature value."""
     reason : str = f'{val} is not a known value for {feature.path[input_type.value]}.'
     return UnsupportedFeature(feature.path, 'unknown',  reason)
+
+def get_feature_list_by_input_type(input_type: InputType, features: List[UnsupportedFeature]) -> \
+    Dict[str, UnsupportedFeature]:
+    """Construct a dictionary with the path as the key, the Feature as the value based on
+    input type. e.g:
+
+    input:
+        input_type: appyaml,
+        features: [
+            {
+                path: {
+                    app_yaml: 'inbound_services',
+                    admin_api: 'inboundServices'
+                },
+                severity: 'major',
+                reason: 'CR does not support GAE bundled services.'
+            }
+        ]
+
+    output:
+        {
+            'inbound_services': {
+                path: {
+                    app_yaml: 'inbound_services',
+                    admin_api: 'inboundServices'
+                },
+                severity: 'major',
+                reason: 'CR does not support GAE bundled services.'
+            }
+        }
+    """
+    return {i.path[input_type.value]: i for i in features}
 
 def _read_yaml_file() -> str:
     """Read the config yaml file of incompabilbe features."""

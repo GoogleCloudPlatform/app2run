@@ -1,2 +1,7 @@
 [DESIGN]
 min-public-methods=1
+
+[SIMILARITIES]
+
+# Minimum lines number of a similarity.
+min-similarity-lines=7
