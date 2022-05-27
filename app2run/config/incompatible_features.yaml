@@ -124,6 +124,26 @@ range_limited:
   flags:
   - --min-instances
   - --max-instances
+- path:
+    admin_api: automaticScaling.maxConcurrentRequests
+    app_yaml: automatic_scaling.max_concurrent_requests
+  range:
+    max: 1000
+    min: 1
+  severity: major
+  reason: Cloud Run supports concurrency values between 0 and 1000.
+  flags:
+  - --concurrency
+- path:
+    admin_api: automaticScaling.targetConcurrentRequests
+    app_yaml: automatic_scaling.target_concurrent_requests
+  range:
+    max: 1000
+    min: 1
+  severity: major
+  reason: Cloud Run supports concurrency values between 0 and 1000.
+  flags:
+  - --concurrency
 value_limited:
 - path:
     admin_api: runtimeConfig.pythonVersion

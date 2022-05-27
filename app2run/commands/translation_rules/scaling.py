@@ -9,7 +9,7 @@ from app2run.common.util import generate_output_flags, get_features_by_prefix, \
     flatten_keys
 
 class ScalingTypeAppYaml(Enum):
-    """Enum of input types."""
+    """Enum of scaling types."""
     AUTOMATIC_SCALING = "automatic_scaling"
     MANUAL_SCALING = 'manual_scaling'
     BASIC_SCALING = 'basic_scaling'

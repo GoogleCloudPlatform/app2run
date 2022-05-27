@@ -2,6 +2,10 @@
 
 from typing import Dict, List, Any
 
+def is_flex_env(input_data: Dict) -> bool:
+    """Detect whether input app.yaml is for flex environment."""
+    return 'env' in input_data and input_data['env'] == 'flex'
+
 def generate_output_flags(flags: List[str], value: str) -> List[str]:
     """Generate output flags by given list of flag names and value."""
     output_flags: List[str] = []

@@ -189,10 +189,9 @@ manual_scaling:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_output = """gcloud run deploy default \\
-  --min-instances=10 \\
+            expected_flags = """--min-instances=10 \\
   --max-instances=10"""
-            assert expected_output in result.output
+            assert expected_flags in result.output
 
 def test_manual_scaling_with_invalid_instances_value():
     """test_manual_scaling_with_invalid_instances_value"""
@@ -204,10 +203,9 @@ manual_scaling:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_output = """gcloud run deploy default \\
-  --min-instances=1000 \\
+            expected_flags = """--min-instances=1000 \\
   --max-instances=1000"""
-            assert expected_output in result.output
+            assert expected_flags in result.output
 
 def test_basic_scaling_with_valid_instances_value():
     """test_basic_scaling_with_valid_instances_value"""
@@ -219,10 +217,9 @@ basic_scaling:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_output = """gcloud run deploy default \\
-  --min-instances=10 \\
+            expected_flags = """--min-instances=10 \\
   --max-instances=10"""
-            assert expected_output in result.output
+            assert expected_flags in result.output
 
 def test_basic_scaling_with_invalid_instances_value():
     """test_basic_scaling_with_invalid_instances_value"""
@@ -234,7 +231,138 @@ basic_scaling:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_output = """gcloud run deploy default \\
-  --min-instances=1000 \\
+            expected_flags = """--min-instances=1000 \\
   --max-instances=1000"""
-            assert expected_output in result.output
+            assert expected_flags in result.output
+
+def test_flex_target_concurrent_automatic_scaling_not_specified():
+    """test_flex_target_concurrent_automatic_scaling_not_specified"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=1000"
+            assert expected_flags in result.output
+
+def test_flex_target_concurrent_requests_not_specified():
+    """test_flex_target_concurrent_requests_not_specified"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+automatic_scaling:
+    min_num_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=1000"
+            assert expected_flags in result.output
+
+def test_flex_target_concurrent_requests_specified_within_max_value():
+    """test_flex_target_concurrent_requests_specified_within_max_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+automatic_scaling:
+    target_concurrent_requests: 999
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=999"
+            assert expected_flags in result.output
+
+def test_flex_target_concurrent_requests_specified_gt_max_value():
+    """test_flex_target_concurrent_requests_specified_gt_max_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+automatic_scaling:
+    target_concurrent_requests: 1001
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=1000"
+            assert expected_flags in result.output
+
+def test_flex_target_concurrent_requests_invalid_value():
+    """test_flex_target_concurrent_requests_invalid_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+automatic_scaling:
+    target_concurrent_requests: 0
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_flags = "--concurrency"
+            assert unexpected_flags not in result.output
+
+def test_standard_max_concurrent_automatic_scaling_not_specified():
+    """test_standard_max_concurrent_automatic_scaling_not_specified"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=10\n"
+            assert expected_flags in result.output
+
+def test_standard_max_concurrent_requests_not_specified():
+    """test_standard_max_concurrent_requests_not_specified"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    min_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=10 "
+            assert expected_flags in result.output
+
+def test_standard_max_concurrent_requests_specified_within_max_value():
+    """test_standard_max_concurrent_requests_specified_within_max_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    max_concurrent_requests: 999
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=999"
+            assert expected_flags in result.output
+
+def test_standard_max_concurrent_requests_specified_gt_max_value():
+    """test_standard_max_concurrent_requests_specified_gt_max_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    max_concurrent_requests: 1001
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=1000"
+            assert expected_flags in result.output
+
+def test_standard_max_concurrent_requests_invalid_value():
+    """test_standard_max_concurrent_requests_invalid_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    max_concurrent_requests: 0
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_flags = "--concurrency"
+            assert unexpected_flags not in result.output
