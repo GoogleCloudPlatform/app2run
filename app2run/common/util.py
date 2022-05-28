@@ -29,7 +29,6 @@ def flatten_keys(input_data: Dict, parent_path: str) -> Dict[str, Any]:
             "memory_gb": 10
         }
     }
-
     output: {
         "resources.cpu": 5,
         "resources.memory_gb": 10

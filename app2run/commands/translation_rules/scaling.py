@@ -29,7 +29,8 @@ def translate_scaling_features(input_data: Dict, input_type: InputType, feature_
             - manual_scaling
             - basic_scaling.
     """
-    scaling_types_used = _get_scaling_features_used(input_data)
+
+    scaling_types_used = get_scaling_features_used(input_data)
     range_limited_features = get_feature_list_by_input_type(input_type, \
         feature_config.range_limited)
     if len(scaling_types_used) == 0:
@@ -75,7 +76,8 @@ def _get_output_flags_by_scaling_type(feature_key: str, \
         target_value = input_value
     return generate_output_flags(range_limited_feature.flags, target_value)
 
-def _get_scaling_features_used(input_data: Dict) -> List[ScalingTypeAppYaml]:
+def get_scaling_features_used(input_data: Dict) -> List[ScalingTypeAppYaml]:
+    """Detect which scaling features are used in input (app.yaml)."""
     scaling_features: List[ScalingTypeAppYaml] = []
     if ScalingTypeAppYaml.AUTOMATIC_SCALING.value in input_data:
         scaling_features.append(ScalingTypeAppYaml.AUTOMATIC_SCALING)

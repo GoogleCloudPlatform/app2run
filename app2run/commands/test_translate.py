@@ -68,7 +68,7 @@ automatic_scaling:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_flags = "--min-instances=1\n"
+            expected_flags = "--min-instances=1 "
             assert expected_flags in result.output
 
 def test_standard_automatic_scaling_with_invalid_min_value():
@@ -94,7 +94,7 @@ automatic_scaling:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_flags = "--max-instances=999\n"
+            expected_flags = "--max-instances=999 "
             assert expected_flags in result.output
 
 def test_standard_automatic_scaling_with_invalid_max_value():
@@ -107,7 +107,7 @@ automatic_scaling:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_flags = "--max-instances=1000\n"
+            expected_flags = "--max-instances=1000 "
             assert expected_flags in result.output
 
 def test_flex_when_no_scaling_feature_found():
@@ -134,7 +134,7 @@ automatic_scaling:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_flags = "--min-instances=1\n"
+            expected_flags = "--min-instances=1 "
             assert expected_flags in result.output
 
 def test_flex_automatic_scaling_with_invalid_min_value():
@@ -162,7 +162,7 @@ automatic_scaling:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_flags = "--max-instances=999\n"
+            expected_flags = "--max-instances=999 "
             assert expected_flags in result.output
 
 def test_flex_automatic_scaling_with_invalid_max_value():
@@ -176,7 +176,7 @@ automatic_scaling:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_flags = "--max-instances=1000\n"
+            expected_flags = "--max-instances=1000 "
             assert expected_flags in result.output
 
 def test_manual_scaling_with_valid_instances_value():
@@ -366,3 +366,65 @@ automatic_scaling:
             result = runner.invoke(cli, ['translate'])
             unexpected_flags = "--concurrency"
             assert unexpected_flags not in result.output
+def test_timeout_flex_env():
+    """test_timeout_flex_env"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--timeout=60m"
+            assert expected_flags in result.output
+
+def test_timeout_standard_env_no_scaling_feature():
+    """test_timeout_standard_env_no_scaling_feature"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_flags = "--timeout"
+            assert unexpected_flags not in result.output
+
+def test_timeout_standard_env_automatic_scaling():
+    """test_timeout_standard_env_automatic_scaling"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    min_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--timeout=10m"
+            assert expected_flags in result.output
+
+def test_timeout_standard_env_manual_scaling():
+    """test_timeout_standard_env_manual_scaling"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+manual_scaling:
+    instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--timeout=60m"
+            assert expected_flags in result.output
+
+def test_timeout_standard_env_basic_scaling():
+    """test_timeout_standard_env_basic_scaling"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+basic_scaling:
+    max_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--timeout=60m"
+            assert expected_flags in result.output
