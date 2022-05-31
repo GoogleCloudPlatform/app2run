@@ -54,6 +54,8 @@ range_limited:
     min: 0
   severity: major
   reason: Cloud Run supports max 8 CPUs.
+  flags:
+  - --cpu
 - path:
     admin_api: resources.memoryGb
     app_yaml: resources.memory_gb
@@ -62,6 +64,8 @@ range_limited:
     min: 0
   severity: major
   reason: Cloud Run supports max 32Gi of memory.
+  flags:
+  - --memory
 - path:
     admin_api: automaticScaling.minInstances
     app_yaml: automatic_scaling.min_instances

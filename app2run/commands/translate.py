@@ -10,6 +10,7 @@ from app2run.commands.translation_rules.scaling import translate_scaling_feature
 from app2run.commands.translation_rules.concurrent_requests import \
     translate_concurrent_requests_features
 from app2run.commands.translation_rules.timeout import translate_timeout_features
+from app2run.commands.translation_rules.cpu_memory import translate_app_resources
 
 @click.command(short_help="Translate an app.yaml to migrate to Cloud Run.")
 @click.option('-a', '--appyaml', default='app.yaml', show_default=True,
@@ -29,8 +30,9 @@ def translate(appyaml) -> None:
 def _get_cloud_run_flags(input_data: Dict, input_type: InputType):
     feature_config : FeatureConfig = get_feature_config()
     return translate_concurrent_requests_features(input_data, input_type, feature_config) + \
-        translate_scaling_features(input_data, input_type, feature_config) + \
-            translate_timeout_features(input_data)
+           translate_scaling_features(input_data, input_type, feature_config) + \
+           translate_timeout_features(input_data) + \
+           translate_app_resources(input_data, input_type)
 
 def _get_service_name(input_data: Dict):
     if 'service' in input_data:

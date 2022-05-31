@@ -428,3 +428,258 @@ basic_scaling:
             result = runner.invoke(cli, ['translate'])
             expected_flags = "--timeout=60m"
             assert expected_flags in result.output
+
+def test_cpu_memory_standard_instance_class_not_specified():
+    """test_cpu_memory_standard_instance_class_not_specified"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_cpu_flag = "--cpu="
+            unexpected_memory_flag = "--memory"
+            assert unexpected_cpu_flag not in result.output
+            assert unexpected_memory_flag not in result.output
+
+def test_cpu_memory_standard_automatic_scaling_default():
+    """test_cpu_memory_standard_automatic_scaling_default"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    min_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=1"
+            expected_memory_flag = "--memory=0.25Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_manual_scaling_default():
+    """test_cpu_memory_standard_manual_scaling_default"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+manual_scaling:
+    instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=1.2"
+            expected_memory_flag = "--memory=0.5Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_basic_scaling_default():
+    """test_cpu_memory_standard_basic_scaling_default"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+basic_scaling:
+    max_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=1.2"
+            expected_memory_flag = "--memory=0.5Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_f1():
+    """test_cpu_memory_standard_instance_class_f1"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: F1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=1"
+            expected_memory_flag = "--memory=0.25Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_f2():
+    """test_cpu_memory_standard_instance_class_f2"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: F2
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=1.2"
+            expected_memory_flag = "--memory=0.5Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_f4():
+    """test_cpu_memory_standard_instance_class_f4"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: F4
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=2.4"
+            expected_memory_flag = "--memory=1Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_f4_1g():
+    """test_cpu_memory_standard_instance_class_f4_1g"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: F4_1G
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=2.4"
+            expected_memory_flag = "--memory=2Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_b1():
+    """test_cpu_memory_standard_instance_class_b1"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: B1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=1"
+            expected_memory_flag = "--memory=0.25Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_b2():
+    """test_cpu_memory_standard_instance_class_b2"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: B2
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=1.2"
+            expected_memory_flag = "--memory=0.5Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_b4():
+    """test_cpu_memory_standard_instance_class_b4"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: B4
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=2.4"
+            expected_memory_flag = "--memory=1Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_b4_1g():
+    """test_cpu_memory_standard_instance_class_b4_1g"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: B4_1G
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=2.4"
+            expected_memory_flag = "--memory=2Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_b8():
+    """test_cpu_memory_standard_instance_class_b8"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: B8
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=4.8"
+            expected_memory_flag = "--memory=2Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_flex_cpu_memory_not_specified():
+    """test_cpu_memory_flex_cpu_memory_not_specified"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_cpu_flag = "--cpu="
+            unexpected_memory_flag = "--memory"
+            assert unexpected_cpu_flag not in result.output
+            assert unexpected_memory_flag not in result.output
+
+def test_cpu_memory_flex_cpu_specified_lt_max():
+    """test_cpu_memory_flex_cpu_specified_lt_max"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+resources:
+    cpu: 7
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=7"
+            assert expected_cpu_flag in result.output
+
+def test_cpu_memory_flex_cpu_specified_gt_max():
+    """test_cpu_memory_flex_cpu_specified_gt_max"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+resources:
+    cpu: 9
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=8"
+            assert expected_cpu_flag in result.output
+
+def test_cpu_memory_flex_memory_gb_specified_lt_max():
+    """test_cpu_memory_flex_memory_gb_specified_lt_max"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+resources:
+    memory_gb: 31
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_memory_flag = "--memory=31Gi"
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_flex_memory_gb_specified_gt_max():
+    """test_cpu_memory_flex_memory_gb_specified_gt_max"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+resources:
+    memory_gb: 33
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_memory_flag = "--memory=32Gi"
+            assert expected_memory_flag in result.output
