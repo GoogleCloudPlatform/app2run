@@ -312,7 +312,7 @@ runtime: python
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_flags = "--concurrency=10\n"
+            expected_flags = "--concurrency=10 "
             assert expected_flags in result.output
 
 def test_standard_max_concurrent_requests_not_specified():
@@ -683,3 +683,96 @@ resources:
             result = runner.invoke(cli, ['translate'])
             expected_memory_flag = "--memory=32Gi"
             assert expected_memory_flag in result.output
+
+def test_entrypoint_found():
+    """test_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flag = "--command=\"foo\""
+            assert expected_flag in result.output
+
+def test_env_variables_found():
+    """test_env_variables_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env_variables:
+    foo: bar
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flag = "--set-env-vars=\"foo=bar\""
+            assert expected_flag in result.output
+
+def test_vpc_access_connector_name_found():
+    """test_vpc_access_connector_name_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+vpc_access_connector:
+    name: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flag = "--vpc-connector=\"foo\""
+            assert expected_flag in result.output
+
+def test_vpc_access_connector_egress_settings_found():
+    """test_vpc_access_connector_egress_settings_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+vpc_access_connector:
+    egress_settings: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flag = "--vpc-egress=\"foo\""
+            assert expected_flag in result.output
+
+def test_service_account_found():
+    """test_service_account_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+service_account: foo@bar.com
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flag = "--service-account=\"foo@bar.com\""
+            assert expected_flag in result.output
+
+def test_service_account_not_found_project_flag_specified_cli():
+    """test_service_account_not_found_project_flag_specified_cli"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate', '-p', 'test'])
+            expected_flag = "--service-account=test@appspot.gserviceaccount.com"
+            assert expected_flag in result.output
+
+def test_supported_features_not_found():
+    """test_supported_features_not_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_command_flag = "--command"
+            unexpected_set_env_vars_flag="--set-env-vars"
+            unexpected_vpc_connector_flag="--vpc-connector"
+            unexpected_vpc_egress_flag="--vpc-egress"
+            assert unexpected_command_flag not in result.output
+            assert unexpected_set_env_vars_flag not in result.output
+            assert unexpected_vpc_connector_flag  not in result.output
+            assert unexpected_vpc_egress_flag not in result.output

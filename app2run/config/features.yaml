@@ -159,3 +159,29 @@ value_limited:
     - 3
   severity: major
   reason: Cloud Run supports Python 3 runtime only.
+supported:
+- path:
+    admin_api: entrypoint.shell
+    app_yaml: entrypoint
+  flags:
+  - --command
+- path:
+    admin_api: envVariables
+    app_yaml: env_variables
+  flags:
+  - --set-env-vars
+- path:
+    admin_api: vpcAccessConnector.name
+    app_yaml: vpc_access_connector.name
+  flags:
+  - --vpc-connector
+- path:
+    admin_api: vpcAccessConnector.egressSettings
+    app_yaml: vpc_access_connector.egress_settings
+  flags:
+  - --vpc-egress
+- path:
+    admin_api: serviceAccount
+    app_yaml: service_account
+  flags:
+  - --service-account

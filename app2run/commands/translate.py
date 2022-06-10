@@ -11,11 +11,13 @@ from app2run.commands.translation_rules.concurrent_requests import \
     translate_concurrent_requests_features
 from app2run.commands.translation_rules.timeout import translate_timeout_features
 from app2run.commands.translation_rules.cpu_memory import translate_app_resources
+from app2run.commands.translation_rules.supported_features import translate_supported_features
 
 @click.command(short_help="Translate an app.yaml to migrate to Cloud Run.")
 @click.option('-a', '--appyaml', default='app.yaml', show_default=True,
               help='Path to the app.yaml of the app.', type=click.File())
-def translate(appyaml) -> None:
+@click.option('-p', '--project', help="The project id to deploy the Cloud Run app.")
+def translate(appyaml, project) -> None:
     """Translate command translates app.yaml to eqauivalant gcloud command to migrate the \
         GAE App to Cloud Run."""
     input_data = yaml.safe_load(appyaml.read())
@@ -23,16 +25,17 @@ def translate(appyaml) -> None:
         click.echo(f'{appyaml.name} is empty.')
         return
 
-    flags: List[str] = _get_cloud_run_flags(input_data, InputType.APP_YAML)
+    flags: List[str] = _get_cloud_run_flags(input_data, InputType.APP_YAML, project)
     service_name = _get_service_name(input_data)
     _generate_output(service_name, flags)
 
-def _get_cloud_run_flags(input_data: Dict, input_type: InputType):
+def _get_cloud_run_flags(input_data: Dict, input_type: InputType, project: str):
     feature_config : FeatureConfig = get_feature_config()
     return translate_concurrent_requests_features(input_data, input_type, feature_config) + \
            translate_scaling_features(input_data, input_type, feature_config) + \
            translate_timeout_features(input_data) + \
-           translate_app_resources(input_data, input_type)
+           translate_app_resources(input_data, input_type) + \
+           translate_supported_features(input_data, input_type, project)
 
 def _get_service_name(input_data: Dict):
     if 'service' in input_data:

@@ -8,7 +8,7 @@ from os import path as os_path
 from typing import Any, Dict, List
 import yaml
 
-_CONFIG_PATH = os_path.join(os_path.dirname(__file__), '../config/incompatible_features.yaml')
+_CONFIG_PATH = os_path.join(os_path.dirname(__file__), '../config/features.yaml')
 
 class FeatureType(Enum):
     """Enum of feature types."""
@@ -32,9 +32,19 @@ class Path:
     app_yaml: str
 
 @dataclass
-class UnsupportedFeature:
-    """Feature represents an unsupported Feature."""
+class Feature:
+    """Feature represents a feature, contains common fields for all features."""
     path: Path
+
+@dataclass
+class SupportedFeature(Feature):
+    """SupportedFeature represents a supported feature with 1:1 mappings \
+        between App Engine and Cloud Run features."""
+    flags: List[str]
+
+@dataclass
+class UnsupportedFeature(Feature):
+    """UnsupportedFeature represents an unsupported Feature."""
     severity: str
     reason: str
 
@@ -70,6 +80,7 @@ class FeatureConfig:
     unsupported: List[UnsupportedFeature]
     range_limited: List[RangeLimitFeature]
     value_limited: List[ValueLimitFeature]
+    supported: List[SupportedFeature]
 
     def __post_init__(self):
         unsupported_data = [UnsupportedFeature(**f) for f in self.unsupported]
@@ -78,6 +89,8 @@ class FeatureConfig:
         self.range_limited = range_limited_data
         value_limited_data = [ValueLimitFeature(**f) for f in self.value_limited]
         self.value_limited = value_limited_data
+        supported_data = [SupportedFeature(**f) for f in self.supported]
+        self.supported = supported_data
 
 def get_feature_config() -> FeatureConfig:
     """Read config data from features yaml and convert data into dataclass types."""
