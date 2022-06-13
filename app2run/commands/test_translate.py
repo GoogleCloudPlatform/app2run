@@ -30,7 +30,7 @@ env: flex
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_output = "gcloud run deploy default"
+            expected_output = "gcloud beta run deploy default"
             assert expected_output in result.output
 
 def test_custom_service_name():
@@ -42,7 +42,7 @@ service: test_service_name
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_output = "gcloud run deploy test_service_name"
+            expected_output = "gcloud beta run deploy test_service_name"
             assert expected_output in result.output
 
 def test_standard_when_no_scaling_feature_found():
@@ -776,3 +776,19 @@ runtime: python
             assert unexpected_set_env_vars_flag not in result.output
             assert unexpected_vpc_connector_flag  not in result.output
             assert unexpected_vpc_egress_flag not in result.output
+
+def test_required_flags():
+    """test_required_flags"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_no_cpu_throttling_flag = "--no-cpu-throttling"
+            expected_allow_unauthenticated_flag = "--allow-unauthenticated"
+            expected_labels_flag = "--labels=migrated-from=app-engine,app2run-version=0_1_0"
+            assert expected_no_cpu_throttling_flag in result.output
+            assert expected_allow_unauthenticated_flag in result.output
+            assert expected_labels_flag in result.output

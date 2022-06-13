@@ -12,6 +12,7 @@ from app2run.commands.translation_rules.concurrent_requests import \
 from app2run.commands.translation_rules.timeout import translate_timeout_features
 from app2run.commands.translation_rules.cpu_memory import translate_app_resources
 from app2run.commands.translation_rules.supported_features import translate_supported_features
+from app2run.commands.translation_rules.required_flags import translate_add_required_flags
 
 @click.command(short_help="Translate an app.yaml to migrate to Cloud Run.")
 @click.option('-a', '--appyaml', default='app.yaml', show_default=True,
@@ -35,7 +36,8 @@ def _get_cloud_run_flags(input_data: Dict, input_type: InputType, project: str):
            translate_scaling_features(input_data, input_type, feature_config) + \
            translate_timeout_features(input_data) + \
            translate_app_resources(input_data, input_type) + \
-           translate_supported_features(input_data, input_type, project)
+           translate_supported_features(input_data, input_type, project) + \
+           translate_add_required_flags()
 
 def _get_service_name(input_data: Dict):
     if 'service' in input_data:
@@ -47,16 +49,16 @@ def _get_service_name(input_data: Dict):
 def _generate_output(service_name: str, flags: List[str]):
     """
     example output:
-    gcloud run deploy default \
-      --cpu=1GB \
-      --memory=2GB \
+    gcloud beta run deploy default \
+      --cpu=1 \
+      --memory=2Gi \
       --timeout=10m
     """
     click.echo("""Warning:not all configuration could be translated,
 for more info use app2run list–incompatible-features.""")
     first_line_ending_char = '' if flags is None or len(flags) == 0 else '\\'
     output = f"""
-gcloud run deploy {service_name} {first_line_ending_char}
+gcloud beta run deploy {service_name} {first_line_ending_char}
 """
     if flags is not None:
         for i, flag in enumerate(flags):
