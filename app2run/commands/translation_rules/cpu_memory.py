@@ -8,7 +8,7 @@ from app2run.commands.translation_rules.scaling import get_scaling_features_used
 from app2run.config.feature_config_loader import FeatureConfig, InputType, \
     get_feature_config, get_feature_list_by_input_type
 
-_ALLOWED_RESOURCE_KEY: List[str] = ['cpu', 'memory_gb', 'memoryGb']
+_ALLOWED_RESOURCE_KEY: List[str] = ['resources.cpu', 'resources.memory_gb', 'resources.memoryGb']
 
 _DEFAULT_CPU_MEM_CONFIG: Dict = {
     'automatic_scaling': 'F1',
@@ -70,7 +70,7 @@ def _translate_flex_cpu_memory(input_data: Dict, input_type: InputType) -> List[
     input_key_value_pairs = flatten_keys(input_data, "")
     input_feature_keys = get_features_by_prefix(input_key_value_pairs, 'resources')
     allowed_input_feature_keys = [key for key in input_feature_keys \
-        if key.split('.')[1] in _ALLOWED_RESOURCE_KEY]
+        if key in _ALLOWED_RESOURCE_KEY]
     for key in allowed_input_feature_keys:
         input_value = input_key_value_pairs[key]
         range_limited_feature = range_limited_features[key]

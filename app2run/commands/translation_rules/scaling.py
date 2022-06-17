@@ -15,10 +15,13 @@ class ScalingTypeAppYaml(Enum):
     BASIC_SCALING = 'basic_scaling'
 
 _SCALING_FEATURE_KEYS_ALLOWED_LIST: Dict = {
-    ScalingTypeAppYaml.AUTOMATIC_SCALING: ['min_num_instances', 'max_num_instances', \
-        'min_instances', 'max_instances'],
-    ScalingTypeAppYaml.MANUAL_SCALING: ['instances'],
-    ScalingTypeAppYaml.BASIC_SCALING: ['max_instances']
+    ScalingTypeAppYaml.AUTOMATIC_SCALING: ['automatic_scaling.min_num_instances', \
+        'automatic_scaling.max_num_instances', \
+        'automatic_scaling.min_instances', 'automatic_scaling.max_instances', \
+        'automaticScaling.minNumInstances', 'automaticScaling.maxNumInstances', \
+        'automaticScaling.minInstances', 'automaticScaling.maxInstances'],
+    ScalingTypeAppYaml.MANUAL_SCALING: ['manual_scaling.instances', 'manualScaling.instances'],
+    ScalingTypeAppYaml.BASIC_SCALING: ['basic_scaling.max_instances', 'basicScaling.maxInstances']
 }
 
 def translate_scaling_features(input_data: Dict, input_type: InputType, feature_config: \
@@ -55,7 +58,7 @@ def _get_output_flags(input_data: Dict, range_limited_features: List[RangeLimitF
     # `automatic_scaling.target_concurrent_requests`, etc.
     allowed_keys = _SCALING_FEATURE_KEYS_ALLOWED_LIST[scaling_type]
     allowed_input_feature_keys = [key for key in input_feature_keys \
-        if key.split('.')[1] in allowed_keys]
+        if key in allowed_keys]
     output_flags: List[str] = []
     for key in allowed_input_feature_keys:
         input_value = input_key_value_pairs[key]
