@@ -33,8 +33,21 @@ env: flex
             expected_output = "gcloud beta run deploy default"
             assert expected_output in result.output
 
-def test_custom_service_name():
-    """test_custom_service_name"""
+def test_custom_service_name_from_service_name_flag():
+    """test_custom_service_name_from_service_name_flag"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+service: test_service_name
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate', '--service-name', 'foo'])
+            expected_output = "gcloud beta run deploy foo"
+            assert expected_output in result.output
+
+def test_custom_service_name_from_app_yaml():
+    """test_custom_service_name_from_app_yaml"""
     with runner.isolated_filesystem():
         with open('app.yaml', 'w', encoding='utf8') as appyaml:
             appyaml.write("""

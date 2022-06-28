@@ -15,10 +15,11 @@ from app2run.commands.translation_rules.supported_features import translate_supp
 from app2run.commands.translation_rules.required_flags import translate_add_required_flags
 
 @click.command(short_help="Translate an app.yaml to migrate to Cloud Run.")
-@click.option('-a', '--appyaml', default='app.yaml', show_default=True,
-              help='Path to the app.yaml of the app.', type=click.File())
+@click.option('-a', '--appyaml', default='app.yaml', show_default=True, \
+    help='Path to the app.yaml of the app.', type=click.File())
 @click.option('-p', '--project', help="The project id to deploy the Cloud Run app.")
-def translate(appyaml, project) -> None:
+@click.option('-s', '--service-name', help="The name of the service for the Cloud Run app.")
+def translate(appyaml, project, service_name) -> None:
     """Translate command translates app.yaml to eqauivalant gcloud command to migrate the \
         GAE App to Cloud Run."""
     input_data = yaml.safe_load(appyaml.read())
@@ -27,7 +28,7 @@ def translate(appyaml, project) -> None:
         return
 
     flags: List[str] = _get_cloud_run_flags(input_data, InputType.APP_YAML, project)
-    service_name = _get_service_name(input_data)
+    service_name = service_name if service_name is not None else _get_service_name(input_data)
     _generate_output(service_name, flags)
 
 def _get_cloud_run_flags(input_data: Dict, input_type: InputType, project: str):
