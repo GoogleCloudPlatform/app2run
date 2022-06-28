@@ -30,7 +30,7 @@ env: flex
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_output = "gcloud beta run deploy default"
+            expected_output = "gcloud run deploy default"
             assert expected_output in result.output
 
 def test_custom_service_name_from_service_name_flag():
@@ -43,7 +43,7 @@ service: test_service_name
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate', '--service-name', 'foo'])
-            expected_output = "gcloud beta run deploy foo"
+            expected_output = "gcloud run deploy foo"
             assert expected_output in result.output
 
 def test_custom_service_name_from_app_yaml():
@@ -55,7 +55,7 @@ service: test_service_name
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_output = "gcloud beta run deploy test_service_name"
+            expected_output = "gcloud run deploy test_service_name"
             assert expected_output in result.output
 
 def test_standard_when_no_scaling_feature_found():

@@ -50,7 +50,7 @@ def _get_service_name(input_data: Dict):
 def _generate_output(service_name: str, flags: List[str]):
     """
     example output:
-    gcloud beta run deploy default \
+    gcloud run deploy default \
       --cpu=1 \
       --memory=2Gi \
       --timeout=10m
@@ -59,7 +59,7 @@ def _generate_output(service_name: str, flags: List[str]):
 for more info use app2run list–incompatible-features.""")
     first_line_ending_char = '' if flags is None or len(flags) == 0 else '\\'
     output = f"""
-gcloud beta run deploy {service_name} {first_line_ending_char}
+gcloud run deploy {service_name} {first_line_ending_char}
 """
     if flags is not None:
         for i, flag in enumerate(flags):
