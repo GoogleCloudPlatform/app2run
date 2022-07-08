@@ -4,6 +4,7 @@
 from typing import Dict, List
 import click
 import yaml
+from app2run.commands.translation_rules.entrypoint import translate_entrypoint_features
 from app2run.config.feature_config_loader import InputType, FeatureConfig,\
     get_feature_config
 from app2run.commands.translation_rules.scaling import translate_scaling_features
@@ -38,6 +39,7 @@ def _get_cloud_run_flags(input_data: Dict, input_type: InputType, project: str):
            translate_timeout_features(input_data) + \
            translate_app_resources(input_data, input_type) + \
            translate_supported_features(input_data, input_type, project) + \
+           translate_entrypoint_features(input_data, input_type) + \
            translate_add_required_flags()
 
 def _get_service_name(input_data: Dict):

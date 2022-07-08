@@ -2,6 +2,12 @@
 
 from typing import Dict, List, Any
 
+ENTRYPOINT_FEATURE_KEYS: List[str] = ['entrypoint', 'entrypoint.shell']
+# Entrypoint for these runtimes must be specified in a Procfile
+# instead of via the `--command` flag at the gcloud run deploy
+# command.
+RUNTIMES_WITH_PROCFILE_ENTRYPOINT: List[str] = ['python', 'ruby']
+
 def is_flex_env(input_data: Dict) -> bool:
     """Detect whether input app.yaml is for flex environment."""
     return 'env' in input_data and input_data['env'] == 'flex'

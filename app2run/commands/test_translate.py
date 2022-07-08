@@ -1,4 +1,5 @@
 """Unit test for `app2run translate` command."""
+from os import path
 from click.testing import CliRunner
 from app2run.main import cli
 
@@ -698,7 +699,7 @@ resources:
             assert expected_memory_flag in result.output
 
 def test_entrypoint_found():
-    """test_entrypoint"""
+    """test_entrypoint_found"""
     with runner.isolated_filesystem():
         with open('app.yaml', 'w', encoding='utf8') as appyaml:
             appyaml.write("""
@@ -708,6 +709,130 @@ entrypoint: foo
             result = runner.invoke(cli, ['translate'])
             expected_flag = "--command=\"foo\""
             assert expected_flag in result.output
+
+def test_entrypoint_found_python_runtime():
+    """test_entrypoint_found_python_runtime"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: foo' in procfile_content
+
+def test_entrypoint_python_runtime_with_existing_procfile_with_entrypoint():
+    """test_entrypoint_python_runtime_with_existing_procfile_with_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+web: foo
+            """)
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_warning_msg = '[Warning] Entrypoint "foo" is not \
+found at existing Procfile, please add "web: foo" to the existing Procfile.'
+            assert un_expected_warning_msg not in result.output
+
+def test_entrypoint_python_runtime_with_existing_procfile_no_entrypoint():
+    """test_entrypoint_python_runtime_with_existing_procfile_no_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+            """)
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            expected_warning_msg = '[Warning] Entrypoint "foo" is not found at \
+existing Procfile, please add "web: foo" to the existing Procfile.'
+            assert un_expected_flag not in result.output
+            assert expected_warning_msg in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: foo' not in procfile_content
+
+def test_entrypoint_found_ruby_runtime():
+    """test_entrypoint_found_ruby_runtime"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: ruby
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: foo' in procfile_content
+
+def test_entrypoint_ruby_runtime_with_existing_procfile_with_entrypoint():
+    """test_entrypoint_ruby_runtime_with_existing_procfile_with_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+web: foo
+            """)
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: ruby
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_warning_msg = '[Warning] Entrypoint "foo" is not \
+found at existing Procfile, please add "web: foo" to the existing Procfile.'
+            assert un_expected_warning_msg not in result.output
+
+def test_entrypoint_ruby_runtime_with_existing_procfile_no_entrypoint():
+    """test_entrypoint_ruby_runtime_with_existing_procfile_no_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+            """)
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: ruby
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            expected_warning_msg = '[Warning] Entrypoint "foo" is not found \
+at existing Procfile, please add "web: foo" to the existing Procfile.'
+            assert un_expected_flag not in result.output
+            assert expected_warning_msg in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: foo' not in procfile_content
 
 def test_env_variables_found():
     """test_env_variables_found"""

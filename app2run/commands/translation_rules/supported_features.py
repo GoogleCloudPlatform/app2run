@@ -6,7 +6,10 @@ from typing import Dict, List
 import click
 from app2run.config.feature_config_loader import get_feature_list_by_input_type, \
     get_feature_config, FeatureConfig, InputType
-from app2run.common.util import flatten_keys, generate_output_flags
+from app2run.common.util import ENTRYPOINT_FEATURE_KEYS, flatten_keys, \
+    generate_output_flags
+
+_EXCLUDE_FEATURES: List[str] = ENTRYPOINT_FEATURE_KEYS
 
 def translate_supported_features(input_data: Dict, input_type: InputType,\
     project_cli_flag: str) -> List[str]:
@@ -14,9 +17,13 @@ def translate_supported_features(input_data: Dict, input_type: InputType,\
     feature_config : FeatureConfig = get_feature_config()
     supported_features = get_feature_list_by_input_type(input_type, feature_config.supported)
     input_key_value_pairs = flatten_keys(input_data, "")
+
     output_flags: List[str] = []
     for key in supported_features:
         if key in input_key_value_pairs:
+            # excluded features are handled in separate translation rules.
+            if key in _EXCLUDE_FEATURES:
+                continue
             feature = supported_features[key]
             input_value = f'"{input_key_value_pairs[key]}"'
             output_flags += generate_output_flags(feature.flags, input_value)
