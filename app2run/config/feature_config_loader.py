@@ -18,6 +18,7 @@ class FeatureType(Enum):
 class InputType(Enum):
     """Enum of input types."""
     APP_YAML = "app_yaml"
+    ADMIN_API = "admin_api"
 
 @dataclass
 class Range:

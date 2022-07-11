@@ -3,6 +3,7 @@
 the `app2run list-incompatible-features` command.
 """
 
+import os
 from typing import Dict, List
 import click
 import yaml
@@ -11,19 +12,59 @@ from app2run.config.feature_config_loader import create_unknown_value_feature, F
 from app2run.common.util import flatten_keys
 
 @click.command(short_help="List incompatible App Engine features to migrate to Cloud Run.")
-@click.option('-a', '--appyaml', default='app.yaml', show_default=True,
-              help='Path to the app.yaml of the app.', type=click.File())
-def list_incompatible_features(appyaml) -> None:
+@click.option('-a', '--appyaml', help='Path to the app.yaml of the app.')
+@click.option('-s', '--service', help='Name of the App Engine service.')
+@click.option('-v', '--version', help='App Engine version id.')
+@click.option('-p', '--project', help='Name of the project where the App Engine version \
+is deployed.')
+def list_incompatible_features(appyaml, service, version, project) -> None:
     """list_incompatible_features command validates the input app.yaml or deployed app version
-    to identify any incompatible features to migrate the App to Cloud Run."""
-
-    input_data = yaml.safe_load(appyaml.read())
-    if input_data is None:
-        click.echo(f'{appyaml.name} is empty.')
+    to identify any incompatible features to migrate the App Engine app to Cloud Run."""
+    if not _validate_input(appyaml, service, version):
         return
+    input_type = InputType.APP_YAML if (service is None and version is None) \
+        else InputType.ADMIN_API
+    if input_type is InputType.APP_YAML and appyaml is None:
+        # default input --appyaml to be `app.yaml` if input type is APP_YAML
+        # and no --appyaml is provided.
+        appyaml = 'app.yaml'
+    input_data = _get_input_data_by_input_type(input_type, appyaml, service, version, project)
+    if input_data is None:
+        click.echo('[Error] Failed to read input data.')
+        return
+    incompatible_list = _check_for_incompatibility(input_data, input_type)
+    _generate_output(incompatible_list, input_type)
 
-    incompatible_list = _check_for_incompatibility(input_data, InputType.APP_YAML)
-    _generate_output(incompatible_list, InputType.APP_YAML)
+def _get_input_data_by_input_type(input_type: InputType, appyaml, service=None, \
+    version=None, project=None) -> Dict:
+    # deployed version is input type
+    if input_type == InputType.ADMIN_API:
+        gcloud_command = f'gcloud app versions describe {version} --service={service}'
+        if project is not None:
+            gcloud_command += f'--project={project}'
+        gcloud_output = os.popen(gcloud_command)
+        return yaml.safe_load(gcloud_output)
+
+    # appyaml is input type
+    try:
+        with open(appyaml, 'r', encoding='utf8') as file:
+            appyaml_data = yaml.safe_load(file.read())
+            if appyaml_data is None:
+                click.echo(f'{file.name} is empty.')
+            return appyaml_data
+    except IOError:
+        click.echo('app.yaml does not exist.')
+    return None
+
+def _validate_input(appyaml, service, version):
+    use_app_yaml = appyaml is not None
+    use_deployed_version = service is not None and version is not None
+    if use_app_yaml and use_deployed_version:
+        click.echo("[Error] Invalid input, only one of app.yaml or deployed version could be \
+used as input. Use --appyaml flag to specify the app.yaml, use --service and --version \
+to specify the deployed version.")
+        return False
+    return True
 
 def _check_for_incompatibility(input_data: Dict, input_type: InputType) -> List[UnsupportedFeature]:
     """Check for incompatibility features in the input yaml, it flatterns the nested input into a
