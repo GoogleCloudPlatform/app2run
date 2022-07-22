@@ -37,6 +37,30 @@ Add the following line to local shell profile (e.g. `.zshrc` or `.bash_profile`)
 alias pip="python3 -m pip"
 ```
 
+### Set up $PATH
+This step is needed for installing the `app2run` CLI tool in the later step, so that the locally compiled python CLI command (executable python script) is accessible locally. 
+
+#### MacOS
+Verify that `/Library/Frameworks/Python.framework/Versions/PYTHON_VERSION/bin` is at the `$PATH`, for example:
+```
+echo $PATH
+/Library/Frameworks/Python.framework/Versions/3.10/bin:/Users/yulingz/google-cloud-sdk/bin:/usr/local/git/current/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/local/go/bin 
+```
+If `/Library/Frameworks/Python.framework/Versions/PYTHON_VERSION/bin` is not in the `$PATH`, add it:
+```
+export PATH="/Library/Frameworks/Python.framework/Versions/PYTHON_VERSION/bin:$PATH" # replace PYTHON_VERSION with the actual python version number installed at your environment.
+```
+
+#### Linux
+Verify that `$HOME/.local/bin` is at the `$PATH`, for example:
+```
+/usr/local/google/home/yulingz/.local/bin:/usr/lib/google-golang/bin:/usr/local/buildtools/java/jdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+```
+If `$HOME/.local/bin` is not in the `$PATH`, add it:
+```
+export PATH="$HOME/.local/bin:$PATH"
+```
+
 ### Download and install app2run CLI
 Download CLI source code:
 ```
@@ -65,7 +89,9 @@ Commands:
                               to Cloud Run.
   translate                   Translate an app.yaml to migrate to Cloud Run.
 ```
-### Testing CLI
+If you get the `command not found: app2run` error, verify the $PATH by following the **Set up $PATH** step.
+
+### Testing the app2run CLI
 In the application source code folder with app.yaml (if you don't already have an App Engine app, you could also use one of the [e2e test apps in App Egnine Flex](http://google3/apphosting/flex/e2e/apps/)), run the `list-incompatible-features` command to identify incompatible features:
 ```
 $ app2run list-incompatible-features
