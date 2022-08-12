@@ -2,6 +2,13 @@
 app2run is a CLI tool to assist migration of App Engine applications to run in
 Cloud Run.
 
+### Python versions supported
+The app2run CLI tool is tested (unit tests passed) to run with the following Python versions:
+- Python 3.10
+- Python 3.9
+- Python 3.8
+- Python 3.7
+
 ## Installation
 
 ### Install python3
@@ -61,6 +68,48 @@ If `$HOME/.local/bin` is not in the `$PATH`, add it:
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
+### (Alternatively) Use a Python virtual environment
+You might want to use a Python virtual environment if you would like to test the CLI with a specific version of Python in an isolated environment.
+
+#### Intall virtualenv
+Follow this [instruction](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#installing-virtualenv) to install `virtualenv` if not already done so.
+
+#### Create a virtual environment:
+```
+virtualenv my_env -p $PATH_TO_PYTHON_VERSION_EXECUTABLE
+
+e.g.
+
+virtualenv py3.9 -p /usr/local/bin/python3.9
+```
+
+#### Activate a virtual environment:
+```
+source py3.9/bin/activate
+```
+#### Verify Python version:
+```
+python3 --version
+```
+#### Verify pip version:
+```
+python3 -m pip --version
+```
+Example output:
+```
+pip 22.1.2 from /usr/local/google/home/yulingz/pyenvs/py3.9/lib/python3.9/site-packages/pip (python 3.9)
+```
+Notice the pip package is at the virutual environment `/usr/local/google/home/yulingz/pyenvs/py3.9`.
+
+#### Create a pip alias:
+```
+alias pip="python3 -m pip"
+```
+
+#### Exit a virtual environment (after done with testing):
+```
+deactivate
+```
 ### Download and install app2run CLI
 Download CLI source code:
 ```
