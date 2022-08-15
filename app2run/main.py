@@ -18,7 +18,9 @@ import click
 from app2run.commands.list_incompatible_features import list_incompatible_features
 from app2run.commands.translate import translate
 
-@click.group()
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
+@click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
     """app2run CLI."""
 
