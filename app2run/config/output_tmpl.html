@@ -1,0 +1,37 @@
+{# app2run/config/output_tmpl.html #}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Incompatible Features</title>
+</head>
+<style>
+    table, th, td {
+        border: 1px solid;
+    }
+    tr:nth-child(even) {
+        background-color: #E7E9EB
+    }
+    </style>
+<body>
+    <h1>Incompatible Features</h1>
+    <div>
+        <p>These are the incompatible features to migrate the App Engine app to CloudRun.</p>
+    </div>
+    <table>
+        <tr>
+            <th>Path</th>
+            <th>Severity</th>
+            <th>Reason</th>
+        </tr>
+        {% for feature in incompatible_features %}
+          <tr>
+            <td>{{ feature.path[input_type.value] }}</td>
+            <td>{{ feature.severity }}</td>
+            <td>{{ feature.reason }}</td>
+          </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

@@ -52,6 +52,29 @@ def test_both_app_yaml_and_service_version_specified():
 could be used as an input. Use --appyaml flag to specify the app.yaml, or use --service and --version \
 to specify the deployed version." in result.output
 
+def test_html_output_format_incompatibility_not_found():
+    """test_html_output_format_incompatibility_not_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write('env: flex')
+            appyaml.close()
+            result = runner.invoke(cli, ['list-incompatible-features', '-o', 'html'])
+            assert result.exit_code == 0
+            assert result.output == "No incompatibilities found.\n"
+
+def test_html_output_format_incompatibility_found():
+    """test_html_output_format_incompatibility_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+beta_settings:
+  cloud_sql_instances: test
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['list-incompatible-features', '-o', 'html'])
+            assert result.exit_code == 0
+            assert "Html output of incompatible features: /tmp/" in result.output
+
 def test_appyaml_no_incompatibility_found():
     """test_appyaml_no_incompatibility_found"""
     with runner.isolated_filesystem():
