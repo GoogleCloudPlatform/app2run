@@ -1112,7 +1112,7 @@ def test_admin_api_flex_target_concurrent_requests_not_specified():
     gcloud_version_describe_output = """
 env: flexible
 automaticScaling:
-    minNumInstances: 1"""
+    minTotalInstances: 1"""
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
             ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
@@ -1184,7 +1184,8 @@ def test_admin_api_standard_max_concurrent_requests_not_specified():
     """test_admin_api_standard_max_concurrent_requests_not_specified"""
     gcloud_version_describe_output = """
 automaticScaling:
-    minInstances: 1"""
+    standardSchedulerSettings:
+        minInstances: 1"""
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
             ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
@@ -1235,3 +1236,518 @@ automaticScaling:
         assert result.exit_code == 0
         unexpected_flags = "--concurrency"
         assert unexpected_flags not in result.output
+
+def test_admin_api_standard_when_no_scaling_feature_found():
+    """test_admin_api_standard_when_no_scaling_feature_found"""
+    gcloud_version_describe_output = """
+runtime: python
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = """--min-instances=0 \\
+  --max-instances=1000"""
+        assert unexpected_flags not in result.output
+
+def test_admin_api_standard_automatic_scaling_with_valid_min():
+    """test_admin_api_standard_automatic_scaling_with_valid_min"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        minInstances: 1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--min-instances=1 "
+        assert expected_flags in result.output
+
+def test_admin_api_standard_automatic_scaling_with_invalid_min_value():
+    """test_admin_api_standard_automatic_scaling_with_invalid_min_value"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        minInstances: -1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = "--min-instances\n"
+        assert unexpected_flags not in result.output
+
+def test_admin_api_standard_automatic_scaling_with_valid_max_value():
+    """test_admin_api_standard_automatic_scaling_with_valid_max_value"""
+
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        maxInstances: 999
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--max-instances=999 "
+        assert expected_flags in result.output
+
+def test_admin_api_standard_automatic_scaling_with_invalid_max_value():
+    """test_admin_api_standard_automatic_scaling_with_invalid_max_value"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        maxInstances: 1001
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--max-instances=1000 "
+        assert expected_flags in result.output
+
+def test_admin_api_flex_when_no_scaling_feature_found():
+    """test_admin_api_flex_when_no_scaling_feature_found"""
+    gcloud_version_describe_output = """
+env: flexible
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = """--min-instances=0 \\
+--max-instances=1000"""
+        assert unexpected_flags not in result.output
+
+def test_admin_api_flex_automatic_scaling_with_valid_min_value():
+    """test_admin_api_flex_automatic_scaling_with_valid_min_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    minTotalInstances: 1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--min-instances=1 "
+        assert expected_flags in result.output
+
+def test_admin_api_flex_automatic_scaling_with_invalid_min_value():
+    """test_admin_api_flex_automatic_scaling_with_invalid_min_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    minTotalInstances: -1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = "--min-instances\n"
+        assert unexpected_flags not in result.output
+
+def test_admin_api_flex_automatic_scaling_with_valid_max_value():
+    """test_admin_api_flex_automatic_scaling_with_valid_max_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    maxTotalInstances: 999
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--max-instances=999 "
+        assert expected_flags in result.output
+
+def test_admin_api_flex_automatic_scaling_with_invalid_max_value():
+    """test_admin_api_flex_automatic_scaling_with_invalid_max_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    maxTotalInstances: 1001
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--max-instances=1000 "
+        assert expected_flags in result.output
+
+def test_admin_api_manual_scaling_with_valid_instances_value():
+    """test_admin_api_manual_scaling_with_valid_instances_value"""
+    gcloud_version_describe_output = """
+manualScaling:
+   instances: 10
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = """--min-instances=10 \\
+  --max-instances=10"""
+        assert expected_flags in result.output
+
+def test_admin_api_manual_scaling_with_invalid_instances_value():
+    """test_admin_api_manual_scaling_with_invalid_instances_value"""
+    gcloud_version_describe_output = """
+manualScaling:
+   instances: 1001
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = """--min-instances=1000 \\
+  --max-instances=1000"""
+        assert expected_flags in result.output
+
+def test_admin_api_basic_scaling_with_valid_instances_value():
+    """test_admin_api_basic_scaling_with_valid_instances_value"""
+    gcloud_version_describe_output = """
+basicScaling:
+   maxInstances: 10
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = """--min-instances=10 \\
+  --max-instances=10"""
+        assert expected_flags in result.output
+
+def test_admin_api_basic_scaling_with_invalid_instances_value():
+    """test_admin_api_basic_scaling_with_invalid_instances_value"""
+    gcloud_version_describe_output = """
+basicScaling:
+   maxInstances: 1001
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = """--min-instances=1000 \\
+  --max-instances=1000"""
+        assert expected_flags in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_not_specified():
+    """test_admin_api_cpu_memory_standard_instance_class_not_specified"""
+    gcloud_version_describe_output = """
+runtime: python"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_cpu_flag = "--cpu="
+        unexpected_memory_flag = "--memory"
+        assert unexpected_cpu_flag not in result.output
+        assert unexpected_memory_flag not in result.output
+
+def test_admin_api_cpu_memory_standard_automatic_scaling_default():
+    """test_admin_api_cpu_memory_standard_automatic_scaling_default"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        minInstances: 1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=1"
+        expected_memory_flag = "--memory=0.25Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_manual_scaling_default():
+    """test_admin_api_cpu_memory_standard_manual_scaling_default"""
+    gcloud_version_describe_output = """
+manualScaling:
+    instances: 1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=1.2"
+        expected_memory_flag = "--memory=0.5Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_basic_scaling_default():
+    """test_admin_api_cpu_memory_standard_basic_scaling_default"""
+    gcloud_version_describe_output = """
+basicScaling:
+    maxInstances: 1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=1.2"
+        expected_memory_flag = "--memory=0.5Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_f1():
+    """test_admin_api_cpu_memory_standard_instance_class_f1"""
+    gcloud_version_describe_output = """
+instanceClass: F1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=1"
+        expected_memory_flag = "--memory=0.25Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_f2():
+    """test_admin_api_cpu_memory_standard_instance_class_f2"""
+    gcloud_version_describe_output = """
+instanceClass: F2
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=1.2"
+        expected_memory_flag = "--memory=0.5Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_f4():
+    """test_admin_api_cpu_memory_standard_instance_class_f4"""
+    gcloud_version_describe_output = """
+instanceClass: F4
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=2.4"
+        expected_memory_flag = "--memory=1Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_f4_1g():
+    """test_admin_api_cpu_memory_standard_instance_class_f4_1g"""
+    gcloud_version_describe_output = """
+instanceClass: F4_1G
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=2.4"
+        expected_memory_flag = "--memory=2Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_b1():
+    """test_admin_api_cpu_memory_standard_instance_class_b1"""
+    gcloud_version_describe_output = """
+instanceClass: B1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=1"
+        expected_memory_flag = "--memory=0.25Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+
+def test_admin_api_cpu_memory_standard_instance_class_b2():
+    """test_admin_api_cpu_memory_standard_instance_class_b2"""
+    gcloud_version_describe_output = """
+instanceClass: B2
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=1.2"
+        expected_memory_flag = "--memory=0.5Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_b4():
+    """test_admin_api_cpu_memory_standard_instance_class_b4"""
+    gcloud_version_describe_output = """
+instanceClass: B4
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=2.4"
+        expected_memory_flag = "--memory=1Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_b4_1g():
+    """test_admin_api_cpu_memory_standard_instance_class_b4_1g"""
+    gcloud_version_describe_output = """
+instanceClass: B4_1G
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=2.4"
+        expected_memory_flag = "--memory=2Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_b8():
+    """test_admin_api_cpu_memory_standard_instance_class_b8"""
+    gcloud_version_describe_output = """
+instanceClass: B8
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=4.8"
+        expected_memory_flag = "--memory=2Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_flex_cpu_memory_not_specified():
+    """test_admin_api_cpu_memory_flex_cpu_memory_not_specified"""
+    gcloud_version_describe_output = """
+env: flexible
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_cpu_flag = "--cpu="
+        unexpected_memory_flag = "--memory"
+        assert unexpected_cpu_flag not in result.output
+        assert unexpected_memory_flag not in result.output
+
+def test_admin_api_cpu_memory_flex_cpu_specified_lt_max():
+    """test_admin_api_cpu_memory_flex_cpu_specified_lt_max"""
+    gcloud_version_describe_output = """
+env: flexible
+resources:
+    cpu: 7
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=7"
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_cpu_memory_flex_cpu_specified_gt_max():
+    """test_admin_api_cpu_memory_flex_cpu_specified_gt_max"""
+    gcloud_version_describe_output = """
+env: flexible
+resources:
+    cpu: 9
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=8"
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_cpu_memory_flex_memory_gb_specified_lt_max():
+    """test_admin_api_cpu_memory_flex_memory_gb_specified_lt_max"""
+    gcloud_version_describe_output = """
+env: flexible
+resources:
+    memoryGb: 31
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--memory=31Gi"
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_cpu_memory_flex_memory_gb_specified_gt_max():
+    """test_admin_api_cpu_memory_flex_memory_gb_specified_gt_max"""
+    gcloud_version_describe_output = """
+env: flexible
+resources:
+    memoryGb: 33
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--memory=32Gi"
+        assert expected_cpu_flag in result.output
