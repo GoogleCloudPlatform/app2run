@@ -16,8 +16,10 @@
 from unittest.mock import patch
 import os
 from os import path
+import pytest
 from click.testing import CliRunner
 from app2run.main import cli
+from app2run.common.util import RUNTIMES_WITH_PROCFILE_ENTRYPOINT
 
 runner = CliRunner()
 
@@ -1866,3 +1868,165 @@ basicScaling:
         assert result.exit_code == 0
         expected_flags = "--timeout=60m"
         assert expected_flags in result.output
+
+def test_admin_api_entrypoint_not_provided_from_cli_command_flag_all_runtimes():
+    """test_admin_api_entrypoint_not_provided_from_cli_command_flag_all_runtimes"""
+    # isolated filesystem is needed for entrypoint tests because it involves generating a Procfile.
+    with runner.isolated_filesystem():
+        gcloud_version_describe_output = """
+env: flexible
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            expected_output = "Warning: entrypoint for the app is not detected/provided, \
+if an entrypoint is needed to start the app, please use the `--command` flag to specify \
+the entrypoint for the App."
+            assert expected_output in result.output
+
+def test_admin_api_entrypoint_provided_from_cli_command_flag_all_runtimes():
+    """test_admin_api_entrypoint_provided_from_cli_command_flag_all_runtimes"""
+    # isolated filesystem is needed for entrypoint tests because it involves generating a Procfile.
+    with runner.isolated_filesystem():
+        gcloud_version_describe_output = """
+env: flexible
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            unexpected_output = "Warning: entrypoint for the app is not detected/provided, \
+if an entrypoint is needed to start the app, please use the `--command` flag to specify \
+the entrypoint for the App."
+            assert unexpected_output in result.output
+
+def test_admin_api_do_not_generate_procfile_for_non_python_or_ruby_runtime():
+    """test_admin_api_do_not_generate_procfile_for_non_python_or_ruby_runtime"""
+    with runner.isolated_filesystem():
+        gcloud_version_describe_output = """
+    runtime: nodejs
+    """
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test', \
+                    '--command', 'ack'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            expected_flag = "--command=\"ack\""
+            assert expected_flag in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is False
+
+@pytest.mark.parametrize("runtime", RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_admin_api_entrypoint_found_from_cli_command(runtime):
+    """test_admin_api_entrypoint_found_from_cli_command"""
+    with runner.isolated_filesystem():
+        gcloud_version_describe_output = f"""
+    runtime: {runtime}
+    """
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test', \
+                    '--command', 'ack'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            un_expected_flag = "--command=\"ack\""
+            assert un_expected_flag not in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: ack' in procfile_content
+
+@pytest.mark.parametrize("runtime", RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_admin_api_entrypoint_with_existing_procfile_with_entrypoint(runtime):
+    """test_admin_api_entrypoint_with_existing_procfile_with_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+web: foo
+            """)
+        gcloud_version_describe_output = f"""
+runtime: {runtime}
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test', \
+                    '--command', 'ack'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            un_expected_flag = "--command=\"ack\""
+            assert un_expected_flag not in result.output
+            expected_warning_msg = '[Warning] Entrypoint "ack" is not \
+found at existing Procfile, please add "web: ack" to the existing Procfile.'
+            assert expected_warning_msg in result.output
+            # Verify entrypoint at existing Procfile is not overriden.
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: ack' not in procfile_content
+
+@pytest.mark.parametrize("runtime", RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_admin_api_entrypoint_with_existing_procfile_no_entrypoint(runtime):
+    """test_admin_api_entrypoint_with_existing_procfile_no_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+            """)
+        gcloud_version_describe_output = f"""
+runtime: {runtime}
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test', \
+                    '--command', 'ack'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            expected_warning_msg = '[Warning] Entrypoint "ack" is not \
+found at existing Procfile, please add "web: ack" to the existing Procfile.'
+            assert expected_warning_msg in result.output
+            # Verify entrypoint at existing Procfile is not overriden.
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: ack' not in procfile_content
+
+@pytest.mark.parametrize("runtime", RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_admin_api_entrypoint_with_existing_procfile_w_matching_entrypoint(runtime):
+    """test_admin_api_entrypoint_with_existing_procfile_w_matching_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+web: ack
+            """)
+        gcloud_version_describe_output = f"""
+runtime: {runtime}
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test', \
+                    '--command', 'ack'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            unexpected_warning_msg = '[Warning] Entrypoint "ack" is not \
+found at existing Procfile, please add "web: ack" to the existing Procfile.'
+            assert unexpected_warning_msg not in result.output

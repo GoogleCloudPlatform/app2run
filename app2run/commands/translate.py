@@ -40,8 +40,10 @@ an input.')
 @optgroup.option('-p', '--project', help='Name of the project where the App Engine version \
 is deployed.')
 @optgroup.group('CLOUD RUN', help='The option(s) for configuraing the `gcloud run deploy` output.')
+@optgroup.option('-c', '--command', help="The entrypoint for the CloudRun App, use this flag \
+    to override the entrypoint at app.yaml or deployed App Engine version.")
 @optgroup.option('--target-service', help="The name of the service for the Cloud Run app.")
-def translate(appyaml, service, version, project, target_service) -> None: # pylint: disable=too-many-arguments
+def translate(appyaml, service, version, project, command, target_service) -> None: # pylint: disable=too-many-arguments
     """Translate command translates an App Engine app.yaml or a deployed version to \
         eqauivalant gcloud command to migrate the GAE App to Cloud Run."""
 
@@ -53,7 +55,7 @@ def translate(appyaml, service, version, project, target_service) -> None: # pyl
     input_flatten_as_appyaml = flatten_keys(input_data, "") if input_type == InputType.APP_YAML \
         else _convert_admin_api_input_to_app_yaml(input_data)
     flags: List[str] = _get_cloud_run_flags(input_data, input_flatten_as_appyaml, \
-        input_type, project)
+        input_type, project, command)
     _generate_output(target_service, flags)
 
 def _convert_admin_api_input_to_app_yaml(admin_api_input_data: Dict):
@@ -82,7 +84,8 @@ def _convert_admin_api_input_to_app_yaml(admin_api_input_data: Dict):
     return app_yaml_input
 
 def _get_cloud_run_flags(input_data: Dict, input_flatten_as_appyaml: Dict, input_type: InputType, \
-    project: str):
+    project: str, command: str):
+
     feature_config : FeatureConfig = get_feature_config()
     range_limited_features_app_yaml = get_feature_list_by_input_type(InputType.APP_YAML, \
         feature_config.range_limited)
@@ -94,7 +97,8 @@ def _get_cloud_run_flags(input_data: Dict, input_flatten_as_appyaml: Dict, input
            translate_timeout_features(input_flatten_as_appyaml) + \
            translate_app_resources(input_flatten_as_appyaml, range_limited_features_app_yaml) + \
            translate_supported_features(input_flatten_as_appyaml, supported_features, project) + \
-           translate_entrypoint_features(input_data, input_type) + \
+           translate_entrypoint_features(input_data, input_type, \
+            supported_features, command) + \
            translate_add_required_flags()
 
 def _get_service_name(input_data: Dict):

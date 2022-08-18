@@ -24,7 +24,9 @@ ENTRYPOINT_FEATURE_KEYS: List[str] = ['entrypoint', 'entrypoint.shell']
 # Entrypoint for these runtimes must be specified in a Procfile
 # instead of via the `--command` flag at the gcloud run deploy
 # command.
-RUNTIMES_WITH_PROCFILE_ENTRYPOINT: List[str] = ['python', 'ruby']
+RUNTIMES_WITH_PROCFILE_ENTRYPOINT: List[str] = ['python', 'python37', \
+    'python38', 'python39', 'python310', 'ruby', 'ruby25', 'ruby26', \
+        'ruby27', 'ruby30']
 _ALLOW_FLEX_ENV_VALUES = ['flex', 'flexible']
 _FLATTEN_EXCLUDE_KEYS = ['env_variables', 'envVariables']
 
