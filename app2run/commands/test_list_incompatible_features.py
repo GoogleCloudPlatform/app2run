@@ -14,7 +14,8 @@ def test_appyaml_not_found():
     with runner.isolated_filesystem():
         result = runner.invoke(cli, ['list-incompatible-features'])
         assert result.exit_code == 0
-        assert "app.yaml does not exist.\n[Error] Failed to read input data.\n" \
+        assert "app.yaml does not exist in current directory, please use --appyaml flag \
+to specify the app.yaml location.\n[Error] Failed to read input data.\n" \
             in result.output
 
 def test_appyaml_empty():
@@ -35,7 +36,7 @@ def test_both_app_yaml_and_service_version_specified():
                 '--service', 'foo', '--version', 'bar'])
             assert result.exit_code == 0
             assert "[Error] Invalid input, only one of app.yaml or deployed version \
-could be used as input. Use --appyaml flag to specify the app.yaml, use --service and --version \
+could be used as an input. Use --appyaml flag to specify the app.yaml, or use --service and --version \
 to specify the deployed version." in result.output
 
 def test_appyaml_no_incompatibility_found():

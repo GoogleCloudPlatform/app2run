@@ -3,10 +3,9 @@
 
 from typing import Dict, List
 import click
-import yaml
 from app2run.commands.translation_rules.entrypoint import translate_entrypoint_features
-from app2run.config.feature_config_loader import InputType, FeatureConfig,\
-    get_feature_config
+from app2run.config.feature_config_loader import Feature, InputType, FeatureConfig,\
+    get_feature_config, get_feature_list_by_input_type
 from app2run.commands.translation_rules.scaling import translate_scaling_features
 from app2run.commands.translation_rules.concurrent_requests import \
     translate_concurrent_requests_features
@@ -14,31 +13,66 @@ from app2run.commands.translation_rules.timeout import translate_timeout_feature
 from app2run.commands.translation_rules.cpu_memory import translate_app_resources
 from app2run.commands.translation_rules.supported_features import translate_supported_features
 from app2run.commands.translation_rules.required_flags import translate_add_required_flags
+from app2run.common.util import flatten_keys, validate_input
 
 @click.command(short_help="Translate an app.yaml to migrate to Cloud Run.")
-@click.option('-a', '--appyaml', default='app.yaml', show_default=True, \
-    help='Path to the app.yaml of the app.', type=click.File())
-@click.option('-p', '--project', help="The project id to deploy the Cloud Run app.")
-@click.option('-s', '--service-name', help="The name of the service for the Cloud Run app.")
-def translate(appyaml, project, service_name) -> None:
-    """Translate command translates app.yaml to eqauivalant gcloud command to migrate the \
-        GAE App to Cloud Run."""
-    input_data = yaml.safe_load(appyaml.read())
-    if input_data is None:
-        click.echo(f'{appyaml.name} is empty.')
+@click.option('-a', '--appyaml', help='Path to the app.yaml of the app.')
+@click.option('-s', '--service', help='Name of the App Engine service.')
+@click.option('-v', '--version', help='App Engine version id.')
+@click.option('-p', '--project', help='Name of the project where the App Engine version \
+is deployed.')
+@click.option('--target-service', help="The name of the service for the Cloud Run app.")
+def translate(appyaml, service, version, project, target_service) -> None: # pylint: disable=too-many-arguments
+    """Translate command translates an App Engine app.yaml or a deployed version to \
+        eqauivalant gcloud command to migrate the GAE App to Cloud Run."""
+
+    input_type, input_data = validate_input(appyaml, service, version, project)
+    if not input_type or not input_data:
         return
+    target_service = target_service if target_service is not None else \
+        _get_service_name(input_data)
+    input_flatten_as_appyaml = flatten_keys(input_data, "") if input_type == InputType.APP_YAML \
+        else _convert_admin_api_input_to_app_yaml(input_data)
+    flags: List[str] = _get_cloud_run_flags(input_data, input_flatten_as_appyaml, \
+        input_type, project)
+    _generate_output(target_service, flags)
 
-    flags: List[str] = _get_cloud_run_flags(input_data, InputType.APP_YAML, project)
-    service_name = service_name if service_name is not None else _get_service_name(input_data)
-    _generate_output(service_name, flags)
-
-def _get_cloud_run_flags(input_data: Dict, input_type: InputType, project: str):
+def _convert_admin_api_input_to_app_yaml(admin_api_input_data: Dict):
+    input_key_value_pairs = flatten_keys(admin_api_input_data, "")
     feature_config : FeatureConfig = get_feature_config()
-    return translate_concurrent_requests_features(input_data, input_type, feature_config) + \
+    translatable_features = {}
+    translatable_features.update(get_feature_list_by_input_type(InputType.ADMIN_API, \
+        feature_config.range_limited))
+    translatable_features.update(get_feature_list_by_input_type(InputType.ADMIN_API, \
+        feature_config.value_limited))
+    translatable_features.update(get_feature_list_by_input_type(InputType.ADMIN_API, \
+        feature_config.supported))
+
+    merged_keys = [key for key in input_key_value_pairs if key in translatable_features]
+    merged_features: List[Feature] = []
+    for key in merged_keys:
+        merged_features.append(translatable_features[key])
+    app_yaml_input = {}
+    for feature in merged_features:
+        app_yaml_input[feature.path[InputType.APP_YAML.value]] = \
+            input_key_value_pairs[feature.path[InputType.ADMIN_API.value]]
+    if 'env' in admin_api_input_data and admin_api_input_data['env'] == 'flexible':
+        app_yaml_input['env'] = 'flex'
+    return app_yaml_input
+
+def _get_cloud_run_flags(input_data: Dict, input_flatten_as_appyaml: Dict, input_type: InputType, \
+    project: str):
+    feature_config : FeatureConfig = get_feature_config()
+    range_limited_features_app_yaml = get_feature_list_by_input_type(InputType.APP_YAML, \
+        feature_config.range_limited)
+    supported_features = get_feature_list_by_input_type(InputType.APP_YAML, \
+        feature_config.supported)
+    return translate_concurrent_requests_features(input_flatten_as_appyaml, \
+        range_limited_features_app_yaml) + \
            translate_scaling_features(input_data, input_type, feature_config) + \
            translate_timeout_features(input_data) + \
            translate_app_resources(input_data, input_type) + \
-           translate_supported_features(input_data, input_type, project) + \
+           translate_supported_features(input_flatten_as_appyaml, supported_features, project) + \
            translate_entrypoint_features(input_data, input_type) + \
            translate_add_required_flags()
 
@@ -57,7 +91,7 @@ def _generate_output(service_name: str, flags: List[str]):
       --memory=2Gi \
       --timeout=10m
     """
-    click.echo("""Warning:not all configuration could be translated,
+    click.echo("""Warning: not all configuration could be translated,
 for more info use app2run list–incompatible-features.""")
     first_line_ending_char = '' if flags is None or len(flags) == 0 else '\\'
     output = f"""

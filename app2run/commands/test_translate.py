@@ -1,16 +1,21 @@
 """Unit test for `app2run translate` command."""
+from unittest.mock import patch
+import os
 from os import path
 from click.testing import CliRunner
 from app2run.main import cli
 
 runner = CliRunner()
 
+##################### Tests using app.yaml input ###################
+
 def test_appyaml_not_found():
     """test_appyaml_not_found"""
     with runner.isolated_filesystem():
         result = runner.invoke(cli, ['translate'])
-        assert result.exit_code == 2
-        assert "Error: Invalid value for '-a' / '--appyaml': 'app.yaml': No such file or director" \
+        assert result.exit_code == 0
+        assert "app.yaml does not exist in current directory, please use --appyaml flag to \
+specify the app.yaml location." \
             in result.output
 
 def test_appyaml_empty():
@@ -20,7 +25,7 @@ def test_appyaml_empty():
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
             assert result.exit_code == 0
-            assert result.output == "app.yaml is empty.\n"
+            assert result.output == "app.yaml is empty.\n[Error] Failed to read input data.\n"
 
 def test_default_service_name():
     """test_default_service_name"""
@@ -34,8 +39,8 @@ env: flex
             expected_output = "gcloud run deploy default"
             assert expected_output in result.output
 
-def test_custom_service_name_from_service_name_flag():
-    """test_custom_service_name_from_service_name_flag"""
+def test_custom_service_name_from_cloud_run_service_name_flag():
+    """test_custom_service_name_from_cloud_run_service_name_flag"""
     with runner.isolated_filesystem():
         with open('app.yaml', 'w', encoding='utf8') as appyaml:
             appyaml.write("""
@@ -43,7 +48,7 @@ runtime: python
 service: test_service_name
             """)
             appyaml.close()
-            result = runner.invoke(cli, ['translate', '--service-name', 'foo'])
+            result = runner.invoke(cli, ['translate', '--target-service', 'foo'])
             expected_output = "gcloud run deploy foo"
             assert expected_output in result.output
 
@@ -893,8 +898,8 @@ def test_service_account_not_found_project_flag_specified_cli():
 runtime: python
             """)
             appyaml.close()
-            result = runner.invoke(cli, ['translate', '-p', 'test'])
-            expected_flag = "--service-account=test@appspot.gserviceaccount.com"
+            result = runner.invoke(cli, ['translate', '--project', 'test'])
+            expected_flag = "--service-account=\"test@appspot.gserviceaccount.com\""
             assert expected_flag in result.output
 
 def test_supported_features_not_found():
@@ -930,3 +935,303 @@ runtime: python
             assert expected_no_cpu_throttling_flag in result.output
             assert expected_allow_unauthenticated_flag in result.output
             assert expected_labels_flag in result.output
+
+##################### Tests using deployed version (admin API) input ###################
+
+def test_admin_api_default_service_name():
+    """test_admin_api_default_service_name"""
+    gcloud_version_describe_output = """
+env: flex
+id: dummy-python
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_output = "gcloud run deploy default"
+        assert expected_output in result.output
+
+def test_admin_api_custom_service_name_from_cloud_run_service_name_flag():
+    """test_admin_api_custom_service_name_from_cloud_run_service_name_flag"""
+    gcloud_version_describe_output = """
+runtime: python
+service: test_service_name
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test', \
+                '--target-service', 'foo-name'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_output = "gcloud run deploy foo-name"
+        assert expected_output in result.output
+
+def test_admin_api_custom_service_name_from_gcloud_describe_output():
+    """test_admin_api_custom_service_name_from_gcloud_describe_output"""
+    gcloud_version_describe_output = """
+runtime: python
+service: test_service_name
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_output = "gcloud run deploy test_service_name"
+        assert expected_output in result.output
+
+def test_admin_api_env_variables_found():
+    """test_admin_api_env_variables_found"""
+    gcloud_version_describe_output = """
+envVariables:
+    foo: bar
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--set-env-vars=\"foo=bar\""
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_vpc_access_connector_name_found():
+    """test_admin_api_vpc_access_connector_name_found"""
+    gcloud_version_describe_output = """
+vpcAccessConnector:
+    name: foo
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--vpc-connector=\"foo\""
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_vpc_access_connector_egress_settings_found():
+    """test_admin_api_vpc_access_connector_egress_settings_found"""
+    gcloud_version_describe_output = """
+vpcAccessConnector:
+    egressSettings: foo
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--vpc-egress=\"foo\""
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_service_account_found():
+    """test_admin_api_service_account_found"""
+    gcloud_version_describe_output = """
+serviceAccount: foo@bar.com
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--service-account=\"foo@bar.com\""
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_service_account_not_found_project_flag_specified_cli():
+    """test_admin_api_service_account_not_found_project_flag_specified_cli"""
+    gcloud_version_describe_output = """
+runtime: python
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--service-account=\"test@appspot.gserviceaccount.com\""
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_supported_features_not_found():
+    """test_admin_api_supported_features_not_found"""
+    gcloud_version_describe_output = """
+runtime: python
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_set_env_vars_flag="--set-env-vars"
+        unexpected_vpc_connector_flag="--vpc-connector"
+        unexpected_vpc_egress_flag="--vpc-egress"
+        assert unexpected_set_env_vars_flag not in result.output
+        assert unexpected_vpc_connector_flag  not in result.output
+        assert unexpected_vpc_egress_flag not in result.output
+
+def test_admin_api_required_flags():
+    """test_admin_api_required_flags"""
+    gcloud_version_describe_output = """
+runtime: python
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_no_cpu_throttling_flag = "--no-cpu-throttling"
+        expected_allow_unauthenticated_flag = "--allow-unauthenticated"
+        expected_labels_flag = "--labels=migrated-from=app-engine,app2run-version=0_1_0"
+        assert expected_no_cpu_throttling_flag in result.output
+        assert expected_allow_unauthenticated_flag in result.output
+        assert expected_labels_flag in result.output
+
+def test_admin_api_flex_target_concurrent_automatic_scaling_not_specified():
+    """test_admin_api_flex_target_concurrent_automatic_scaling_not_specified"""
+    gcloud_version_describe_output = """
+env: flexible
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=1000"
+        assert expected_flags in result.output
+
+def test_admin_api_flex_target_concurrent_requests_not_specified():
+    """test_admin_api_flex_target_concurrent_requests_not_specified"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    minNumInstances: 1"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=1000"
+        assert expected_flags in result.output
+
+def test_admin_api_flex_target_concurrent_requests_specified_within_max_value():
+    """test_admin_api_flex_target_concurrent_requests_specified_within_max_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    targetConcurrentRequests: 999"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=999"
+        assert expected_flags in result.output
+
+def test_admin_api_flex_target_concurrent_requests_specified_gt_max_value():
+    """test_admin_api_flex_target_concurrent_requests_specified_gt_max_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    targetConcurrentRequests: 1001"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=1000"
+        assert expected_flags in result.output
+
+def test_admin_api_flex_target_concurrent_requests_invalid_value():
+    """test_admin_api_flex_target_concurrent_requests_invalid_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    targetConcurrentRequests: 0"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = "--concurrency"
+        assert unexpected_flags not in result.output
+
+def test_admin_api_standard_max_concurrent_automatic_scaling_not_specified():
+    """test_admin_api_standard_max_concurrent_automatic_scaling_not_specified"""
+    gcloud_version_describe_output = """
+runtime: python"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=10 "
+        assert expected_flags in result.output
+
+def test_admin_api_standard_max_concurrent_requests_not_specified():
+    """test_admin_api_standard_max_concurrent_requests_not_specified"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    minInstances: 1"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=10 "
+        assert expected_flags in result.output
+
+def test_admin_api_standard_max_concurrent_requests_specified_within_max_value():
+    """test_admin_api_standard_max_concurrent_requests_specified_within_max_value"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    maxConcurrentRequests: 999"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=999 "
+        assert expected_flags in result.output
+
+def test_admin_api_standard_max_concurrent_requests_specified_gt_max_value():
+    """test_admin_api_standard_max_concurrent_requests_specified_gt_max_value"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    maxConcurrentRequests: 1001"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=1000 "
+        assert expected_flags in result.output
+
+def test_admin_api_standard_max_concurrent_requests_invalid_value():
+    """test_admin_api_standard_max_concurrent_requests_invalid_value"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    maxConcurrentRequests: 0"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = "--concurrency"
+        assert unexpected_flags not in result.output
