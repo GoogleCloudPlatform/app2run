@@ -71,7 +71,7 @@ def _get_cloud_run_flags(input_data: Dict, input_flatten_as_appyaml: Dict, input
     return translate_concurrent_requests_features(input_flatten_as_appyaml, \
         range_limited_features_app_yaml) + \
            translate_scaling_features(input_flatten_as_appyaml, range_limited_features_app_yaml) + \
-           translate_timeout_features(input_data) + \
+           translate_timeout_features(input_flatten_as_appyaml) + \
            translate_app_resources(input_flatten_as_appyaml, range_limited_features_app_yaml) + \
            translate_supported_features(input_flatten_as_appyaml, supported_features, project) + \
            translate_entrypoint_features(input_data, input_type) + \

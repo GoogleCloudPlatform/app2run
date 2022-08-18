@@ -2,7 +2,8 @@
 
 from typing import Dict, List
 from app2run.common.util import is_flex_env
-from app2run.commands.translation_rules.scaling import ScalingTypeAppYaml, get_scaling_features_used
+from app2run.commands.translation_rules.scaling import \
+    ScalingTypeAppYaml, get_scaling_features_used
 
 def translate_timeout_features(input_data: Dict) -> List[str]:
     """Tranlsate default timeout values for setting the --timeout flag to Cloud Run."""
