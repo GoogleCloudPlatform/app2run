@@ -1,5 +1,6 @@
 [DESIGN]
 min-public-methods=1
+max-module-lines=3000
 
 [SIMILARITIES]
 
