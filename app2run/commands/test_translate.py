@@ -1765,3 +1765,72 @@ resources:
         assert result.exit_code == 0
         expected_cpu_flag = "--memory=32Gi"
         assert expected_cpu_flag in result.output
+
+def test_admin_api_timeout_flex_env():
+    """test_admin_api_timeout_flex_env"""
+    gcloud_version_describe_output = """
+env: flexible"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--timeout=60m"
+        assert expected_flags in result.output
+
+def test_admin_api_timeout_standard_env_no_scaling_feature():
+    """test_admin_api_timeout_standard_env_no_scaling_feature"""
+    gcloud_version_describe_output = """
+runtime: python"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = "--timeout"
+        assert unexpected_flags not in result.output
+
+def test_admin_api_timeout_standard_env_automatic_scaling():
+    """test_admin_api_timeout_standard_env_automatic_scaling"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        minInstances: 1"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--timeout=10m"
+        assert expected_flags in result.output
+
+def test_admin_api_timeout_standard_env_manual_scaling():
+    """test_admin_api_timeout_standard_env_manual_scaling"""
+    gcloud_version_describe_output = """
+manualScaling:
+    instances: 1"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--timeout=60m"
+        assert expected_flags in result.output
+
+def test_admin_api_timeout_standard_env_basic_scaling():
+    """test_admin_api_timeout_standard_env_basic_scaling"""
+    gcloud_version_describe_output = """
+basicScaling:
+    maxInstances: 1"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--timeout=60m"
+        assert expected_flags in result.output
