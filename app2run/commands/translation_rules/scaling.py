@@ -17,13 +17,12 @@
 from enum import Enum
 from typing import Dict, List
 import click
-from app2run.config.feature_config_loader import FeatureConfig, InputType, \
-    RangeLimitFeature, get_feature_list_by_input_type
+from app2run.config.feature_config_loader import RangeLimitFeature
 from app2run.common.util import generate_output_flags, get_features_by_prefix, \
     flatten_keys
 
 class ScalingTypeAppYaml(Enum):
-    """Enum of scaling types."""
+    """Enum of scaling types in app.yaml."""
     AUTOMATIC_SCALING = "automatic_scaling"
     MANUAL_SCALING = 'manual_scaling'
     BASIC_SCALING = 'basic_scaling'
@@ -31,25 +30,19 @@ class ScalingTypeAppYaml(Enum):
 _SCALING_FEATURE_KEYS_ALLOWED_LIST: Dict = {
     ScalingTypeAppYaml.AUTOMATIC_SCALING: ['automatic_scaling.min_num_instances', \
         'automatic_scaling.max_num_instances', \
-        'automatic_scaling.min_instances', 'automatic_scaling.max_instances', \
-        'automaticScaling.minNumInstances', 'automaticScaling.maxNumInstances', \
-        'automaticScaling.minInstances', 'automaticScaling.maxInstances'],
-    ScalingTypeAppYaml.MANUAL_SCALING: ['manual_scaling.instances', 'manualScaling.instances'],
-    ScalingTypeAppYaml.BASIC_SCALING: ['basic_scaling.max_instances', 'basicScaling.maxInstances']
+        'automatic_scaling.min_instances', 'automatic_scaling.max_instances'],
+    ScalingTypeAppYaml.MANUAL_SCALING: ['manual_scaling.instances'],
+    ScalingTypeAppYaml.BASIC_SCALING: ['basic_scaling.max_instances']
 }
 
-def translate_scaling_features(input_data: Dict, input_type: InputType, feature_config: \
-    FeatureConfig) -> List[str]:
+def translate_scaling_features(input_data: Dict, range_limited_features: Dict) -> List[str]:
     """Translate scaling features. Translation rule:
         - Only one of the scaling options could be specified:
             - automatic_scaling
             - manual_scaling
             - basic_scaling.
     """
-
     scaling_types_used = get_scaling_features_used(input_data)
-    range_limited_features = get_feature_list_by_input_type(input_type, \
-        feature_config.range_limited)
     if len(scaling_types_used) == 0:
         return []
     if len(scaling_types_used) > 1:
@@ -57,7 +50,7 @@ def translate_scaling_features(input_data: Dict, input_type: InputType, feature_
             only one scaling option should be used.')
         return []
 
-    scaling_type: ScalingTypeAppYaml = scaling_types_used[0]
+    scaling_type = scaling_types_used[0]
     return _get_output_flags(input_data, range_limited_features, scaling_type)
 
 def _get_output_flags(input_data: Dict, range_limited_features: List[RangeLimitFeature], \
@@ -95,11 +88,9 @@ def _get_output_flags_by_scaling_type(feature_key: str, \
 
 def get_scaling_features_used(input_data: Dict) -> List[ScalingTypeAppYaml]:
     """Detect which scaling features are used in input (app.yaml)."""
-    scaling_features: List[ScalingTypeAppYaml] = []
-    if ScalingTypeAppYaml.AUTOMATIC_SCALING.value in input_data:
-        scaling_features.append(ScalingTypeAppYaml.AUTOMATIC_SCALING)
-    if ScalingTypeAppYaml.MANUAL_SCALING.value in input_data:
-        scaling_features.append(ScalingTypeAppYaml.MANUAL_SCALING)
-    if ScalingTypeAppYaml.BASIC_SCALING.value in input_data:
-        scaling_features.append(ScalingTypeAppYaml.BASIC_SCALING)
-    return scaling_features
+    scaling_types_detected = set()
+    for scaling_type in ScalingTypeAppYaml:
+        scaling_features_from_input = get_features_by_prefix(input_data, scaling_type.value)
+        if len(scaling_features_from_input) > 0:
+            scaling_types_detected.add(scaling_type)
+    return list(scaling_types_detected)

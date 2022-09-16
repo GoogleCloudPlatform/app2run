@@ -14,7 +14,6 @@
 
 """translate module contains the implmentation for the `app2run translate` command.
 """
-
 from typing import Dict, List
 import click
 from app2run.commands.translation_rules.entrypoint import translate_entrypoint_features
@@ -72,6 +71,8 @@ def _convert_admin_api_input_to_app_yaml(admin_api_input_data: Dict):
             input_key_value_pairs[feature.path[InputType.ADMIN_API.value]]
     if 'env' in admin_api_input_data and admin_api_input_data['env'] == 'flexible':
         app_yaml_input['env'] = 'flex'
+    if 'instanceClass' in admin_api_input_data:
+        app_yaml_input['instance_class'] = input_key_value_pairs['instanceClass']
     return app_yaml_input
 
 def _get_cloud_run_flags(input_data: Dict, input_flatten_as_appyaml: Dict, input_type: InputType, \
@@ -83,9 +84,9 @@ def _get_cloud_run_flags(input_data: Dict, input_flatten_as_appyaml: Dict, input
         feature_config.supported)
     return translate_concurrent_requests_features(input_flatten_as_appyaml, \
         range_limited_features_app_yaml) + \
-           translate_scaling_features(input_data, input_type, feature_config) + \
+           translate_scaling_features(input_flatten_as_appyaml, range_limited_features_app_yaml) + \
            translate_timeout_features(input_data) + \
-           translate_app_resources(input_data, input_type) + \
+           translate_app_resources(input_flatten_as_appyaml, range_limited_features_app_yaml) + \
            translate_supported_features(input_flatten_as_appyaml, supported_features, project) + \
            translate_entrypoint_features(input_data, input_type) + \
            translate_add_required_flags()

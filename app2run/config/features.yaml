@@ -79,7 +79,7 @@ range_limited:
   flags:
   - --memory
 - path:
-    admin_api: automaticScaling.minInstances
+    admin_api: automaticScaling.standardSchedulerSettings.minInstances
     app_yaml: automatic_scaling.min_instances
   range:
     max: 1000
@@ -89,7 +89,7 @@ range_limited:
   flags:
   - --min-instances
 - path:
-    admin_api: automaticScaling.maxInstances
+    admin_api: automaticScaling.standardSchedulerSettings.maxInstances
     app_yaml: automatic_scaling.max_instances
   range:
     max: 1000
@@ -99,7 +99,7 @@ range_limited:
   flags:
   - --max-instances
 - path:
-    admin_api: automaticScaling.minNumInstances
+    admin_api: automaticScaling.minTotalInstances
     app_yaml: automatic_scaling.min_num_instances
   range:
     max: 1000
@@ -109,7 +109,7 @@ range_limited:
   flags:
   - --min-instances
 - path:
-    admin_api: automaticScaling.maxNumInstances
+    admin_api: automaticScaling.maxTotalInstances
     app_yaml: automatic_scaling.max_num_instances
   range:
     max: 1000
