@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """This module contains common utility functions."""
-
 import os
+import re
 from typing import Dict, List, Any, Tuple
 import click
 import yaml
@@ -125,3 +125,15 @@ def get_feature_key_from_input(input_key_value_pairs: Dict, allow_keys: List[str
 Please ensure only one is specified".')
         return None
     return allow_keys_from_input[0]
+
+def get_project_id_from_gcloud():
+    """Get project_id from `gcloud config list`."""
+    click.echo('Running `gcloud config list`:')
+    output = os.popen('gcloud config list').read()
+    project_id = re.search(r'(?<=project = )([\w-]+)', output)
+    if project_id is None:
+        click.echo('Unable to determine project id from `gcloud config list`,  \
+use the --project flag to specify the project id of the deployed \
+App Engine version.')
+        raise click.Abort()
+    return project_id.group()

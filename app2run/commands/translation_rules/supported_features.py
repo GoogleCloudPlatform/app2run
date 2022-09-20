@@ -14,12 +14,10 @@
 
 """Translate supported features found at app.yaml to equivalent Cloud Run flags."""
 
-import os
-import re
+
 from typing import Dict, List
-import click
 from app2run.common.util import ENTRYPOINT_FEATURE_KEYS, generate_output_flags, \
-    get_feature_key_from_input
+    get_feature_key_from_input, get_project_id_from_gcloud
 
 _ALLOW_ENV_VARIABLES_KEY: str = 'env_variables'
 _ALLOW_SERVICE_ACCOUNT_KEY: str = 'service_account'
@@ -71,24 +69,12 @@ def _get_output_flags_for_default_service_account(input_data: Dict, \
         # or
         # - check if gcloud config has project id .
         project_id = project_cli_flag if project_cli_flag is not None \
-            else _get_project_id_from_gcloud()
-        if not project_id:
-            click.echo("Warning: unable to determine project id from gcloud config, \
-                use the --project flag to specify the project id of the deployed \
-                    App Engine version.")
-            return []
+            else get_project_id_from_gcloud()
 
         feature = supported_features['service_account']
         default_service_account = f'"{project_id}@appspot.gserviceaccount.com"'
         return generate_output_flags(feature.flags, default_service_account)
     return []
-
-def _get_project_id_from_gcloud():
-    output = os.popen('gcloud config list').read()
-    project_id = re.search(r'(?<=project = )([\w-]+)', output)
-    if project_id is not None:
-        return project_id.group()
-    return ""
 
 def _generate_envs_output(envs: Dict) -> str:
     if len(envs.items()) == 0:

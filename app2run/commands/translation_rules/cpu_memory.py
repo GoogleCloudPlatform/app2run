@@ -130,7 +130,8 @@ def _generate_cpu_memory_flags_by_instance_class(instance_class: str) -> List[st
     return [f'--cpu={cpu_value}', f'--memory={memory_value}']
 
 def _format_cloud_run_memory_unit(value: float) -> str:
-    # 1G = 953Mi, 1Gi = 1024Mi memory, in Cloud Run, a minimum of 512Mi memory is
+    # 1GB = 953Mi, 1Gi = 1024Mi memory, in Cloud Run, a minimum of 512MiB memory is
     # required for 1 CPU. Therefore, using Gi works for the lower bound of
     # memory requirement.
+    # Allowed values are [m, k, M, G, T, Ki, Mi, Gi, Ti, Pi, Ei]
     return f'{value}Gi'

@@ -24,7 +24,7 @@ import click
 import yaml
 from app2run.config.feature_config_loader import create_unknown_value_feature, FeatureConfig, \
     get_feature_config, InputType, UnsupportedFeature, get_feature_list_by_input_type
-from app2run.common.util import flatten_keys, validate_input
+from app2run.common.util import flatten_keys, validate_input, get_project_id_from_gcloud
 
 _TEMPLATE_PATH = os_path.join(os_path.dirname(__file__), '../config/')
 
@@ -43,7 +43,16 @@ def list_incompatible_features(appyaml, service, version, project, output) -> No
     if not input_type or not input_data:
         return
     incompatible_list = _check_for_incompatibility(input_data, input_type)
-    _generate_output(incompatible_list, input_type, output)
+    appyaml = 'app.yaml' if appyaml is None else appyaml
+    input_name = _generate_input_name(input_type, appyaml, service, version, project)
+    _generate_output(incompatible_list, input_type, output, input_name)
+
+def _generate_input_name(input_type, appyaml, service, version, project_cli_flag) -> str:
+    if input_type == InputType.APP_YAML :
+        return appyaml
+    project_id = project_cli_flag if project_cli_flag is not None \
+        else get_project_id_from_gcloud()
+    return f'{project_id}/{service}/{version}'
 
 def _check_for_incompatibility(input_data: Dict, input_type: InputType) -> List[UnsupportedFeature]:
     """Check for incompatibility features in the input yaml, it flatterns the nested input into a
@@ -79,8 +88,9 @@ def _check_for_incompatibility(input_data: Dict, input_type: InputType) -> List[
     return incompatible_list
 
 def _generate_output(incompatible_features: List[UnsupportedFeature], input_type: InputType, \
-    output: str) -> None:
+    output: str,  input_name: str) -> None:
     """Generate readable output for features compability check result."""
+    click.echo(f"list-incompatible-features output for {input_name}:\n")
     if len(incompatible_features) == 0:
         click.echo("No incompatibilities found.")
         return
@@ -88,7 +98,7 @@ def _generate_output(incompatible_features: List[UnsupportedFeature], input_type
         _genertate_html_output(incompatible_features, input_type)
         return
 
-    click.echo("summary:")
+    click.echo("Summary:")
     click.echo(f'  major: {len(incompatible_features)}')
     click.echo("incompatible_features:")
     click.echo(yaml.dump(_get_display_features(incompatible_features, input_type)))

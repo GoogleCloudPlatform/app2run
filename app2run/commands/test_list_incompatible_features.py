@@ -62,7 +62,10 @@ def test_html_output_format_incompatibility_not_found():
             appyaml.close()
             result = runner.invoke(cli, ['list-incompatible-features', '-o', 'html'])
             assert result.exit_code == 0
-            assert result.output == "No incompatibilities found.\n"
+            assert result.output == """list-incompatible-features output for app.yaml:
+
+No incompatibilities found.
+"""
 
 def test_html_output_format_incompatibility_found():
     """test_html_output_format_incompatibility_found"""
@@ -85,7 +88,10 @@ def test_appyaml_no_incompatibility_found():
             appyaml.close()
             result = runner.invoke(cli, ['list-incompatible-features'])
             assert result.exit_code == 0
-            assert result.output == "No incompatibilities found.\n"
+            assert result.output == """list-incompatible-features output for app.yaml:
+
+No incompatibilities found.
+"""
 
 def test_appyaml_beta_settings_cloud_sql_instances_unsupported():
     """test_appyaml_beta_settings_cloud_sql_instances_unsupported"""
@@ -256,7 +262,10 @@ resources:
             appyaml.close()
             result = runner.invoke(cli, ['list-incompatible-features'])
             assert result.exit_code == 0
-            assert result.output == "No incompatibilities found.\n"
+            assert result.output == """list-incompatible-features output for app.yaml:
+
+No incompatibilities found.
+"""
 
 def test_appyaml_memory_exceed_range_limited():
     """test_appyaml_memory_exceed_range_limited"""
@@ -285,7 +294,10 @@ resources:
             appyaml.close()
             result = runner.invoke(cli, ['list-incompatible-features'])
             assert result.exit_code == 0
-            assert result.output == "No incompatibilities found.\n"
+            assert result.output == """list-incompatible-features output for app.yaml:
+
+No incompatibilities found.
+"""
 
 def test_appyaml_runtime_config_python_version_2_value_limited():
     """test_appyaml_runtime_config_python_version_2_value_limited"""
@@ -314,8 +326,10 @@ runtime_config:
             appyaml.close()
             result = runner.invoke(cli, ['list-incompatible-features'])
             assert result.exit_code == 0
-            assert result.output == "No incompatibilities found.\n"
+            assert result.output == """list-incompatible-features output for app.yaml:
 
+No incompatibilities found.
+"""
 def test_appyaml_runtime_config_unknonw_value_limited():
     """test_appyaml_runtime_config_unknonw_value_limited"""
     with runner.isolated_filesystem():
@@ -375,8 +389,10 @@ id: dummy-python
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert 'No incompatibilities found.' in result.output
 
@@ -388,8 +404,10 @@ betaSettings:
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -409,8 +427,10 @@ resources:
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -431,8 +451,10 @@ handlers:
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -447,8 +469,10 @@ inboundServices: test
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -463,8 +487,10 @@ errorHandlers: test
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -480,8 +506,10 @@ appEngineApis: test
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -496,8 +524,10 @@ buildEnvVariables: test
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -514,8 +544,10 @@ resources:
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -531,8 +563,10 @@ network:
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -549,8 +583,10 @@ resources:
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -566,11 +602,15 @@ resources:
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
-        assert result.output == "No incompatibilities found.\n"
+        assert result.output == """list-incompatible-features output for test/foo/bar:
 
+No incompatibilities found.
+"""
 def test_admin_api_memory_exceed_range_limited():
     """test_admin_api_memory_exceed_range_limited"""
     gcloud_version_describe_output = """
@@ -579,8 +619,10 @@ resources:
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -596,10 +638,15 @@ resources:
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
-        assert result.output == "No incompatibilities found.\n"
+        assert result.output == """list-incompatible-features output for test/foo/bar:
+
+No incompatibilities found.
+"""
 
 def test_admin_api_runtime_config_python_version_2_value_limited():
     """test_admin_api_runtime_config_python_version_2_value_limited"""
@@ -609,8 +656,10 @@ runtimeConfig:
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -626,10 +675,15 @@ runtimeConfig:
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
-        assert result.output == "No incompatibilities found.\n"
+        assert result.output == """list-incompatible-features output for test/foo/bar:
+
+No incompatibilities found.
+"""
 
 def test_admin_api_runtime_config_unknonw_value_limited():
     """test_admin_api_runtime_config_unknonw_value_limited"""
@@ -639,8 +693,10 @@ runtimeConfig:
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -656,8 +712,10 @@ runtime: {runtime}
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
@@ -671,8 +729,10 @@ runtime: foo
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
-            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
-        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
