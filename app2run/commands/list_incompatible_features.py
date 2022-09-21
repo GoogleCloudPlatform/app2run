@@ -21,6 +21,7 @@ from os import path as os_path
 from typing import Dict, List
 from jinja2 import Environment, FileSystemLoader
 import click
+from click_option_group import optgroup
 import yaml
 from app2run.config.feature_config_loader import create_unknown_value_feature, FeatureConfig, \
     get_feature_config, InputType, UnsupportedFeature, get_feature_list_by_input_type
@@ -29,12 +30,15 @@ from app2run.common.util import flatten_keys, validate_input, get_project_id_fro
 _TEMPLATE_PATH = os_path.join(os_path.dirname(__file__), '../config/')
 
 @click.command(short_help="List incompatible App Engine features to migrate to Cloud Run.")
-@click.option('-a', '--appyaml', help='Path to the app.yaml of the app.')
-@click.option('-s', '--service', help='Name of the App Engine service.')
-@click.option('-v', '--version', help='App Engine version id.')
-@click.option('-p', '--project', help='Name of the project where the App Engine version \
+@optgroup.group('APP.YAML', help='The option(s) for using an app.yaml as an input.')
+@optgroup.option('-a', '--appyaml', help='Path to the app.yaml of the app.')
+@optgroup.group('ADMIN API', help='The option(s) for using a deployed version as an input.')
+@optgroup.option('-s', '--service', help='Service name of a deployed App Engine version.')
+@optgroup.option('-v', '--version', help='Version id of a deployed App Engine version.')
+@optgroup.option('-p', '--project', help='Name of the project where the App Engine version \
 is deployed.')
-@click.option('-o', '--output', default='yaml', show_default=True, type=click.Choice(['yaml', \
+@optgroup.group('OTHERS')
+@optgroup.option('-o', '--output', default='yaml', show_default=True, type=click.Choice(['yaml', \
     'html']), help='Output format of the list-incompatible-features command.')
 def list_incompatible_features(appyaml, service, version, project, output) -> None:
     """list_incompatible_features command validates the input app.yaml or deployed app version

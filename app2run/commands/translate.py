@@ -16,6 +16,7 @@
 """
 from typing import Dict, List
 import click
+from click_option_group import optgroup
 from app2run.commands.translation_rules.entrypoint import translate_entrypoint_features
 from app2run.config.feature_config_loader import Feature, InputType, FeatureConfig,\
     get_feature_config, get_feature_list_by_input_type
@@ -28,13 +29,18 @@ from app2run.commands.translation_rules.supported_features import translate_supp
 from app2run.commands.translation_rules.required_flags import translate_add_required_flags
 from app2run.common.util import flatten_keys, validate_input
 
-@click.command(short_help="Translate an app.yaml to migrate to Cloud Run.")
-@click.option('-a', '--appyaml', help='Path to the app.yaml of the app.')
-@click.option('-s', '--service', help='Name of the App Engine service.')
-@click.option('-v', '--version', help='App Engine version id.')
-@click.option('-p', '--project', help='Name of the project where the App Engine version \
+@click.command(short_help="Translate an App Engine app.yaml or deployed version to \
+migrate to Cloud Run.")
+@optgroup.group('APP.YAML', help='The option(s) for using an app.yaml as an input.')
+@optgroup.option('-a', '--appyaml', help='Path to the app.yaml of the app.')
+@optgroup.group('ADMIN API', help='The option(s) for using a deployed App Engine version as \
+an input.')
+@optgroup.option('-s', '--service', help='Name of the App Engine service.')
+@optgroup.option('-v', '--version', help='App Engine version id.')
+@optgroup.option('-p', '--project', help='Name of the project where the App Engine version \
 is deployed.')
-@click.option('--target-service', help="The name of the service for the Cloud Run app.")
+@optgroup.group('CLOUD RUN', help='The option(s) for configuraing the `gcloud run deploy` output.')
+@optgroup.option('--target-service', help="The name of the service for the Cloud Run app.")
 def translate(appyaml, service, version, project, target_service) -> None: # pylint: disable=too-many-arguments
     """Translate command translates an App Engine app.yaml or a deployed version to \
         eqauivalant gcloud command to migrate the GAE App to Cloud Run."""

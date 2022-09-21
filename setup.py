@@ -22,7 +22,8 @@ setup(
     install_requires=[
         'Click',
         'pyyaml',
-        'Jinja2'
+        'Jinja2',
+        'click-option-group'
     ],
     entry_points={
         'console_scripts': [
