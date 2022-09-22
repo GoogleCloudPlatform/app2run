@@ -171,6 +171,71 @@ value_limited:
     - 3
   severity: major
   reason: Cloud Run supports Python 3 runtime only.
+- path:
+    admin_api: runtime
+    app_yaml: runtime
+  known_values:
+    - aspnetcore
+    - custom
+    - java
+    - python
+    - python27
+    - python37
+    - python38
+    - python39
+    - python310
+    - php
+    - php55
+    - php72
+    - php73
+    - php74
+    - php81
+    - ruby
+    - ruby25
+    - ruby26
+    - ruby27
+    - ruby30
+    - go
+    - go111
+    - go112
+    - go113
+    - go114
+    - go115
+    - go116
+    - nodejs
+    - nodejs8
+    - nodejs10
+    - nodejs12
+    - nodejs14
+    - nodejs16
+  allowed_values:
+    - aspnetcore
+    - custom
+    - java
+    - python
+    - python37
+    - python38
+    - python39
+    - python310
+    - nodejs
+    - nodejs8
+    - nodejs10
+    - nodejs12
+    - nodejs14
+    - nodejs16
+    - go
+    - go112
+    - go113
+    - go114
+    - go115
+    - go116
+    - ruby
+    - ruby25
+    - ruby26
+    - ruby27
+    - ruby30
+  severity: major
+  reason: Cloud Run supports App Engine standard Gen2 runtimes and flexible runtimes (except php).
 supported:
 - path:
     admin_api: entrypoint.shell
