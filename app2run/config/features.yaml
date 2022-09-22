@@ -18,8 +18,8 @@ unsupported:
   severity: major
   reason: Cloud Run does not support TCP based CloudSQL instance configs.
 - path:
-    admin_api: volumes
-    app_yaml: volumes
+    admin_api: resources.volumes
+    app_yaml: resources.volumes
   severity: major
   reason: Cloud Run does not support tmpfs volume mounts.
 - path:
@@ -53,8 +53,8 @@ unsupported:
   severity: major
   reason: No support for passing environment vars to buildpacks at the time of building.
 - path:
-    admin_api: diskGb
-    app_yaml: disk_size_gb
+    admin_api: resources.diskGb
+    app_yaml: resources.disk_size_gb
   severity: minor
   reason: No support for custom disk size.
 range_limited:

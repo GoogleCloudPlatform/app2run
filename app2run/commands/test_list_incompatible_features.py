@@ -106,7 +106,11 @@ def test_appyaml_volumes_unsupported():
     with runner.isolated_filesystem():
         with open('app.yaml', 'w', encoding='utf8') as appyaml:
             appyaml.write("""
-volumes: test
+resources:
+    volumes:
+        - name: test
+          volume_type: test
+          size_gb: 1
             """)
             appyaml.close()
             result = runner.invoke(cli, ['list-incompatible-features'])
@@ -114,7 +118,7 @@ volumes: test
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
             assert "severity: major" in result.output
-            assert "path: volumes" in result.output
+            assert "path: resources.volumes" in result.output
 
 def test_appyaml_inbound_services_unsupported():
     """test_appyaml_inbound_services_unsupported"""
@@ -196,7 +200,8 @@ def test_appyaml_disk_size_gb_unsupported():
     with runner.isolated_filesystem():
         with open('app.yaml', 'w', encoding='utf8') as appyaml:
             appyaml.write("""
-disk_size_gb: test
+resources:
+    disk_size_gb: 1
             """)
             appyaml.close()
             result = runner.invoke(cli, ['list-incompatible-features'])
@@ -204,7 +209,7 @@ disk_size_gb: test
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
             assert "severity: minor" in result.output
-            assert "path: disk_size_gb" in result.output
+            assert "path: resources.disk_size_gb" in result.output
 
 def test_appyaml_network_forwarded_ports_unsupported():
     """test_appyaml_network_forwarded_ports_unsupported"""
@@ -362,7 +367,11 @@ betaSettings:
 def test_admin_api_volumes_unsupported():
     """test_admin_api_volumes_unsupported"""
     gcloud_version_describe_output = """
-volumes: test
+resources:
+    volumes:
+        - name: test
+          volumeType: test
+          sizeGb: 1
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
@@ -372,7 +381,7 @@ volumes: test
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
         assert "severity: major" in result.output
-        assert "path: volumes" in result.output
+        assert "path: resources.volumes" in result.output
         assert "reason: Cloud Run does not support tmpfs volume mounts." in result.output
 
 def test_admin_api_handlers_unsupported():
@@ -466,7 +475,8 @@ buildpacks at the time of building.' in result.output
 def test_admin_api_disk_size_gb_unsupported():
     """test_admin_api_disk_size_gb_unsupported"""
     gcloud_version_describe_output = """
-diskGb: test
+resources:
+    diskGb: 1
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
@@ -476,7 +486,7 @@ diskGb: test
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
         assert "severity: minor" in result.output
-        assert "path: diskGb" in result.output
+        assert "path: resources.diskGb" in result.output
         assert 'reason: No support for custom disk size.' in result.output
 
 def test_admin_api_network_forwarded_ports_unsupported():
