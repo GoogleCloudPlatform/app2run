@@ -15,10 +15,12 @@
 """Unit test for `app2run list-incompatible-features` command."""
 from unittest.mock import patch
 import os
+import pytest
 from click.testing import CliRunner
 from app2run.main import cli
 
 runner = CliRunner()
+_UNSUPPORTED_RUNTIMES = ['python27', 'php', 'php55', 'php72', 'php73', 'php74', 'php81', 'go111']
 
 ##################### Tests using app.yaml input ###################
 
@@ -331,6 +333,38 @@ runtime_config:
             assert "severity: unknown" in result.output
             assert "4 is not a known value for runtime_config.python_version" in result.output
 
+@pytest.mark.parametrize("runtime", _UNSUPPORTED_RUNTIMES, ids=_UNSUPPORTED_RUNTIMES)
+def test_appyaml_runtime_value_limited(runtime):
+    """test_appyaml_runtime_value_limited"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write(f"""
+runtime: {runtime}
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['list-incompatible-features'])
+            assert result.exit_code == 0
+            assert "major: 1" in result.output
+            assert "incompatible_features" in result.output
+            assert "severity: major" in result.output
+            assert "path: runtime" in result.output
+
+def test_appyaml_runtime_unknonw_value_limited():
+    """test_appyaml_runtime_unknonw_value_limited"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['list-incompatible-features'])
+            assert result.exit_code == 0
+            assert "major: 1" in result.output
+            assert "incompatible_features" in result.output
+            assert "path: runtime" in result.output
+            assert "severity: unknown" in result.output
+            assert "foo is not a known value for runtime" in result.output
+
 ##################### Tests using deployed version (admin API) input ###################
 
 def test_admin_api_no_incompatibility_found():
@@ -613,3 +647,35 @@ runtimeConfig:
         assert "severity: unknown" in result.output
         assert "path: runtimeConfig.pythonVersion" in result.output
         assert 'reason: 4 is not a known value for runtimeConfig.pythonVersion' in result.output
+
+@pytest.mark.parametrize("runtime", _UNSUPPORTED_RUNTIMES, ids=_UNSUPPORTED_RUNTIMES)
+def test_admin_api_runtime_value_limited(runtime):
+    """test_admin_api_runtime_value_limited"""
+    gcloud_version_describe_output = f"""
+runtime: {runtime}
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+        assert result.exit_code == 0
+        assert "major: 1" in result.output
+        assert "incompatible_features" in result.output
+        assert "severity: major" in result.output
+        assert "path: runtime" in result.output
+
+def test_admin_api_runtime_unknonw_value_limited():
+    """test_admin_api_runtime_unknonw_value_limited"""
+    gcloud_version_describe_output = """
+runtime: foo
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo')
+        assert result.exit_code == 0
+        assert "major: 1" in result.output
+        assert "incompatible_features" in result.output
+        assert "path: runtime" in result.output
+        assert "severity: unknown" in result.output
+        assert "foo is not a known value for runtime" in result.output
