@@ -860,10 +860,25 @@ def test_env_variables_found():
             appyaml.write("""
 env_variables:
     foo: bar
+    foo2: bar2
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_flag = "--set-env-vars=\"foo=bar\""
+            expected_flag = "--set-env-vars=\"foo=bar,foo2=bar2\""
+            assert expected_flag in result.output
+
+def test_env_variables_value_has_comma_found():
+    """test_env_variables_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env_variables:
+    foo: bar
+    foo2: bar1,bar2
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flag = "--set-env-vars=\"^@^foo=bar@foo2=bar1,bar2\""
             assert expected_flag in result.output
 
 def test_vpc_access_connector_name_found():
@@ -1003,6 +1018,7 @@ def test_admin_api_env_variables_found():
     gcloud_version_describe_output = """
 envVariables:
     foo: bar
+    foo2: bar2
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
@@ -1010,7 +1026,23 @@ envVariables:
         mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
 --project=test')
         assert result.exit_code == 0
-        expected_cpu_flag = "--set-env-vars=\"foo=bar\""
+        expected_cpu_flag = "--set-env-vars=\"foo=bar,foo2=bar2\""
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_env_variables_value_has_comma_found():
+    """test_admin_api_env_variables_found"""
+    gcloud_version_describe_output = """
+envVariables:
+    foo: bar
+    foo2: bar1,bar2
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--set-env-vars=\"^@^foo=bar@foo2=bar1,bar2\""
         assert expected_cpu_flag in result.output
 
 def test_admin_api_vpc_access_connector_name_found():

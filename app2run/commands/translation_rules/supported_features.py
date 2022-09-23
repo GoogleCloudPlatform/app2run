@@ -21,9 +21,10 @@ import click
 from app2run.common.util import ENTRYPOINT_FEATURE_KEYS, generate_output_flags, \
     get_feature_key_from_input
 
-_EXCLUDE_FEATURES: List[str] = ENTRYPOINT_FEATURE_KEYS
 _ALLOW_ENV_VARIABLES_KEY: str = 'env_variables'
 _ALLOW_SERVICE_ACCOUNT_KEY: str = 'service_account'
+_EXCLUDE_FEATURES: List[str] = ENTRYPOINT_FEATURE_KEYS
+_EXCLUDE_FEATURES.append(_ALLOW_ENV_VARIABLES_KEY)
 
 def translate_supported_features(input_data: Dict, supported_features: Dict, \
     project_cli_flag: str) -> List[str]:
@@ -93,7 +94,16 @@ def _generate_envs_output(envs: Dict) -> str:
     if len(envs.items()) == 0:
         return ''
     output_str = ''
+    # if value contains comma, use a different delimiter
+    # see https://cloud.google.com/run/docs/configuring/environment-variables#escaping
+    value_contains_comma = False
     for key, value in envs.items():
-        output_str += f'{key}={value};'
-    # remove the last tailing ;
+        if ',' in value:
+            value_contains_comma = True
+            break
+    delimiter = '@' if value_contains_comma else ','
+    output_str = '' if delimiter == ',' else f'^{delimiter}^'
+    for key, value in envs.items():
+        output_str += f'{key}={value}{delimiter}'
+    # remove the last tailing delimiter
     return output_str[:-1]
