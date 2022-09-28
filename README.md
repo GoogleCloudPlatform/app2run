@@ -1,5 +1,5 @@
 ## app2run
-app2run is a CLI tool to assist migration of App Engine applications to run in
+app2run is a Python CLI tool to assist migration of App Engine applications to run in
 Cloud Run.
 
 ### Python versions supported
@@ -9,8 +9,13 @@ The app2run CLI tool is tested (unit tests passed) to run with the following Pyt
 - Python 3.8
 - Python 3.7
 
-## Installation
+### App Engine runtimes supported
+The app2run CLI tool supports the following App Engine runtimes:
+- [App Engine Standard Gen2 runtimes](https://cloud.google.com/appengine/docs/standard/runtimes)
+- [App Engine Flex runtimes](https://cloud.google.com/appengine/docs/flexible)
 
+## Installation
+If you already have python3 (or virtualenv) and pip installed, skip over to the [Download and install app2run CLI](#app2run_install) step.
 ### Install python3
 Download the latest python3 from https://www.python.org/downloads/ and install it based on your OS type (MacOS/Windows/Linux).
 
@@ -111,6 +116,7 @@ alias pip="python3 -m pip"
 deactivate
 ```
 ### Download and install app2run CLI
+<a name="app2run_install"></a>
 Download CLI source code:
 ```
 $ git clone "sso://team/app-engine-geryon-team/app2run"
@@ -140,11 +146,29 @@ Commands:
 ```
 If you get the `command not found: app2run` error, verify the $PATH by following the **Set up $PATH** step.
 
-### Testing the app2run CLI
-In the application source code folder with app.yaml (if you don't already have an App Engine app, you could also use one of the [e2e test apps in App Egnine Flex](http://google3/apphosting/flex/e2e/apps/)), run the `list-incompatible-features` command to identify incompatible features:
+### Testing the app2run CLI with app.yaml as input
+An App Engine app.yaml can be used as an input for the `app2run` CLI.
+
+#### 1. Use the `app2run list-incompatible-features` command.
+
+Learn about the `app2run list-incompatible-features` command API:
 ```
+$ app2run list-incompatible-features -h
+```
+
+Check for incompatible features of an App (run command from the the GAE App source code root directory, or use the `--appyaml` flag to provide the file path for a `app.yaml`)
+
+```
+# from App source code directory w/ app.yaml
 $ app2run list-incompatible-features
 ```
+
+or 
+
+```
+$ app2run list-incompatible-features --appyaml=PATH_TO_APP_YAML
+```
+
 Example output:
 ```
 summary:
@@ -162,9 +186,24 @@ incompatible_features:
   severity: major
 ```
 
-Test the `translate` command, run:
+#### 2. Use the `app2run translate` command.
+Learn about the `app2run translate` command API:
 ```
-$ app2run translate
+$ app2run translate -h
+```
+Translate an App (run command from the the GAE App source code root directory, or use the `--appyaml` flag to provide the file path for a `app.yaml`):
+Translate an App (run command from the GAE App source code root directory,
+or use the `--appyaml` flag to provide the file path for a `app.yaml`):
+
+```
+# from source code directory w/ app.ayml
+$ app2run translate --target-service my-service
+```
+
+or
+
+```
+$ app2run translate --appyaml PATH_TO_APP_YAML --target-service my-service
 ```
 Example output:
 ```
@@ -172,15 +211,64 @@ Your active configuration is: [prod]
 Warning:not all configuration could be translated,
 for more info use app2run list–incompatible-features.
 
-gcloud run deploy foo-service \
+gcloud run deploy my-service \
   --concurrency=1000 \
   --timeout=60m \
-  --cpu=5 \
+  --cpu=4 \
   --memory=32Gi \
   --command="gunicorn -b :$PORT main:app" \
   --set-env-vars="foo=bar" \
   --service-account=yulingz-demo@appspot.gserviceaccount.com
 ```
+
+From the app source code root directory, execute the `glcoud run deploy` command from the  `app2run translate` output, e.g.:
+
+```
+$ gcloud run deploy my-service \
+  --concurrency=1000 \
+  --timeout=60m \
+  --cpu=4 \
+  --memory=32Gi \
+  --command="gunicorn -b :$PORT main:app" \
+  --set-env-vars="foo=bar" \
+  --service-account=yulingz-demo@appspot.gserviceaccount.com
+Deploying from source. To deploy a container use [--image]. See https://cloud.google.com/run/docs/deploying-source-code for more details.
+...
+Building using Buildpacks and deploying container to Cloud Run service [my-service] in project XXX region XXX
+✓ Building and deploying new service... Done.
+  ✓ Uploading sources...
+  ✓ Building Container... Logs are available at [XXX].
+  ✓ Creating Revision... Deploying Revision.
+  ✓ Routing traffic...
+  ✓ Setting IAM Policy...
+Done.
+Service [my-service] revision [my-service-00001-zob] has been deployed and is serving 100 percent of traffic.
+Service URL: https://my-service-f5pup6wzca-uc.a.run.app
+```
+
+### Testing the app2run CLI with a deployed App Engine version as input.
+
+Besides using `app.yaml` as an input, the app2run CLI could take a deployed App Engine version as an input. Under the hood, it uses `gcloud app versions describe` command to get the metadata of a deployed App Engine version, and runs the same logics (as `app.yaml` as input) to list incompatible features and translate the App.
+
+#### 1. Identify a deployed App Engine version for translation:
+
+```
+$ gcloud app versions list
+```
+
+#### 2. Use `app2run list-incompatible-features` on a deployed version.
+
+```
+$ app2run list-incompatible-features --service SERVICE_NAME --version VERSION_ID --target-service my-service
+```
+
+#### 3. Use `app2run translate` on a deployed version.
+```
+$ app2run translate --service SERVICE_NAME --version VERSION_ID --target-service my-service
+```
+#### 4. Run the `gcloud run deploy` command generated from `app2run translate`.
+From the app source code root directory, execute the `glcoud run deploy` command
+from the `app2run translate` output. This step is the same as using `app.yaml` as an input.
 
 ## Local development
 
