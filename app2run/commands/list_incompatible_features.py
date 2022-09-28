@@ -15,7 +15,6 @@
 """list_incompatible_features module contains the implmentation for
 the `app2run list-incompatible-features` command.
 """
-
 import tempfile
 from os import path as os_path
 from typing import Dict, List
@@ -23,7 +22,7 @@ from jinja2 import Environment, FileSystemLoader
 import click
 from click_option_group import optgroup
 import yaml
-from app2run.config.feature_config_loader import create_unknown_value_feature, FeatureConfig, \
+from app2run.config.feature_config_loader import FeatureConfig, \
     get_feature_config, InputType, UnsupportedFeature, get_feature_list_by_input_type
 from app2run.common.util import flatten_keys, validate_input, get_project_id_from_gcloud
 
@@ -69,9 +68,7 @@ def _check_for_incompatibility(input_data: Dict, input_type: InputType) -> List[
         feature_config.range_limited)
     value_restricted_features = get_feature_list_by_input_type(input_type, \
         feature_config.value_limited)
-
     input_key_value_pairs = flatten_keys(input_data, "")
-
     for key, val in input_key_value_pairs.items():
         # Check for unsupported features.
         if key in unsupported_features:
@@ -79,15 +76,13 @@ def _check_for_incompatibility(input_data: Dict, input_type: InputType) -> List[
         # Check for range_limited features.
         elif key in range_limited_features:
             feature = range_limited_features[key]
-            if not feature.is_within_range(val):
+            if not feature.validate(val):
                 incompatible_list.append(range_limited_features[key])
         # Check for value_restricted features.
         elif key in value_restricted_features:
             feature = value_restricted_features[key]
-            if not feature.is_value_known(val):
-                incompatible_list.append(create_unknown_value_feature(feature, val, input_type))
-            elif not feature.is_value_allowed(val):
-                incompatible_list.append(value_restricted_features[key])
+            if not feature.validate(val):
+                incompatible_list.append(feature)
 
     return incompatible_list
 

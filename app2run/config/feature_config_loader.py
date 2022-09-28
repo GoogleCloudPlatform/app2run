@@ -15,6 +15,7 @@
 """features_helper module contains the functions to access data in the
 incompatible_features.yaml file as dataclass types.
 """
+import re
 from enum import Enum
 from dataclasses import dataclass
 from os import path as os_path
@@ -69,7 +70,7 @@ class RangeLimitFeature(UnsupportedFeature):
     range: Range
     flags: List[str] = None
 
-    def is_within_range(self, val):
+    def validate(self, val) -> bool:
         """Check if the given value is within range limit."""
         return self.range['min'] <= val <= self.range['max']
 
@@ -77,16 +78,21 @@ class RangeLimitFeature(UnsupportedFeature):
 class ValueLimitFeature(UnsupportedFeature):
     """ValueLimitFeature presents a value_limited Feature, it extends
     UnsupportedFeature and adds additional fields to validate compatible value."""
-    allowed_values: List[str]
-    known_values: List[str]
+    allowed_values: List[str] = None
+    known_values: List[str] = None
+    valid_format: str = None
+    flags: List[str] = None
 
-    def is_value_known(self, val):
-        """Check if the given value is known in Cloud Run."""
-        return val in self.known_values
-
-    def is_value_allowed(self, val):
-        """Check if the given value is allowed in Cloud Run."""
-        return val in self.allowed_values
+    def validate(self, val) -> bool:
+        """Check if the given value is valid, either by regex or set of known/allowed values."""
+        if self.valid_format is not None:
+            # validate by regex only when valid_format is present.
+            return re.search(self.valid_format, val) is not None
+        if self.known_values is not None and val not in self.known_values:
+            reason : str = f'{val} is not a known value.'
+            self.reason = reason
+            return False
+        return self.allowed_values is not None and val in self.allowed_values
 
 @dataclass()
 class FeatureConfig:
@@ -112,11 +118,6 @@ def get_feature_config() -> FeatureConfig:
     parsed_yaml_dict = _parse_yaml_file(read_yaml)
     return _dict_to_features(parsed_yaml_dict)
 
-def create_unknown_value_feature(feature: UnsupportedFeature, val: str, input_type: InputType) \
-    -> UnsupportedFeature:
-    """Create an instance of UnsupportedFeature for unknown feature value."""
-    reason : str = f'{val} is not a known value for {feature.path[input_type.value]}.'
-    return UnsupportedFeature(feature.path, 'unknown',  reason)
 
 def get_feature_list_by_input_type(input_type: InputType, features: List[UnsupportedFeature]) -> \
     Dict[str, UnsupportedFeature]:

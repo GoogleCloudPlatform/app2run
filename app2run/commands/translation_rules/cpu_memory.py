@@ -88,7 +88,8 @@ def _translate_flex_cpu_memory(input_data: Dict, range_limited_features: Dict) -
     for key in allowed_input_feature_keys:
         input_value = input_key_value_pairs[key]
         range_limited_feature = range_limited_features[key]
-        target_value = input_value if range_limited_feature.is_within_range(input_value) \
+
+        target_value = input_value if range_limited_feature.validate(input_value) \
             else range_limited_feature.range['max']
         field_name = key.split('.')[1]
         # Cloud Run --memory requires a unit suffix

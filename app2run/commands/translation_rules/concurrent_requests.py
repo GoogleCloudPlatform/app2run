@@ -48,6 +48,5 @@ def translate_concurrent_requests_features(input_data: Dict, \
         click.echo(f'Warning: {feature_key} has invalid value of {input_value}, \
            minimum value is {feature.range["min"]}')
         return []
-    target_value = input_value if \
-        feature.is_within_range(input_value) else feature.range['max']
+    target_value = input_value if feature.validate(input_value) else feature.range['max']
     return generate_output_flags(feature.flags, target_value)

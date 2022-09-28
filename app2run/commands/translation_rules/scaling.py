@@ -82,7 +82,7 @@ def _get_output_flags_by_scaling_type(feature_key: str, \
         return []
 
     target_value = range_limited_feature.range['max']
-    if range_limited_feature.is_within_range(input_value):
+    if range_limited_feature.validate(input_value):
         target_value = input_value
     return generate_output_flags(range_limited_feature.flags, target_value)
 

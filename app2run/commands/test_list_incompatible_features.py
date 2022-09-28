@@ -73,7 +73,7 @@ def test_html_output_format_incompatibility_found():
         with open('app.yaml', 'w', encoding='utf8') as appyaml:
             appyaml.write("""
 beta_settings:
-  cloud_sql_instances: test
+  cloud_sql_instances: test=tcp:8080
             """)
             appyaml.close()
             result = runner.invoke(cli, ['list-incompatible-features', '-o', 'html'])
@@ -93,8 +93,8 @@ def test_appyaml_no_incompatibility_found():
 No incompatibilities found.
 """
 
-def test_appyaml_beta_settings_cloud_sql_instances_unsupported():
-    """test_appyaml_beta_settings_cloud_sql_instances_unsupported"""
+def test_appyaml_beta_settings_cloud_sql_instances_value_valid():
+    """test_appyaml_beta_settings_cloud_sql_instances_value_valid"""
     with runner.isolated_filesystem():
         with open('app.yaml', 'w', encoding='utf8') as appyaml:
             appyaml.write("""
@@ -104,10 +104,28 @@ beta_settings:
             appyaml.close()
             result = runner.invoke(cli, ['list-incompatible-features'])
             assert result.exit_code == 0
+            assert result.output == """list-incompatible-features output for app.yaml:
+
+No incompatibilities found.
+"""
+
+def test_appyaml_beta_settings_cloud_sql_instances_value_invalid():
+    """test_appyaml_beta_settings_cloud_sql_instances_value_invalid"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+beta_settings:
+  cloud_sql_instances: test=tcp:8080
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['list-incompatible-features'])
+            assert result.exit_code == 0
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
             assert "severity: major" in result.output
             assert "path: beta_settings.cloud_sql_instances" in result.output
+            assert "reason: Cloud Run does not support TCP based CloudSQL instance configs." \
+                in result.output
 
 def test_appyaml_volumes_unsupported():
     """test_appyaml_volumes_unsupported"""
@@ -344,8 +362,8 @@ runtime_config:
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
             assert "path: runtime_config.python_version" in result.output
-            assert "severity: unknown" in result.output
-            assert "4 is not a known value for runtime_config.python_version" in result.output
+            assert "severity: major" in result.output
+            assert "4 is not a known value." in result.output
 
 @pytest.mark.parametrize("runtime", _UNSUPPORTED_RUNTIMES, ids=_UNSUPPORTED_RUNTIMES)
 def test_appyaml_runtime_value_limited(runtime):
@@ -376,8 +394,8 @@ runtime: foo
             assert "major: 1" in result.output
             assert "incompatible_features" in result.output
             assert "path: runtime" in result.output
-            assert "severity: unknown" in result.output
-            assert "foo is not a known value for runtime" in result.output
+            assert "severity: major" in result.output
+            assert "foo is not a known value." in result.output
 
 ##################### Tests using deployed version (admin API) input ###################
 
@@ -396,11 +414,29 @@ id: dummy-python
         assert result.exit_code == 0
         assert 'No incompatibilities found.' in result.output
 
-def test_admin_api_beta_settings_cloud_sql_instances_unsupported():
-    """test_admin_api_beta_settings_cloud_sql_instances_unsupported"""
+def test_admin_api_beta_settings_cloud_sql_instances_value_valid():
+    """test_admin_api_beta_settings_cloud_sql_instances_value_limited"""
     gcloud_version_describe_output = """
 betaSettings:
   cloudSqlInstances: test
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['list-incompatible-features', '--service', 'foo', '--version', 'bar', \
+                '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        assert result.output == """list-incompatible-features output for test/foo/bar:
+
+No incompatibilities found.
+"""
+
+def test_admin_api_beta_settings_cloud_sql_instances_value_invalid():
+    """test_admin_api_beta_settings_cloud_sql_instances_value_limited"""
+    gcloud_version_describe_output = """
+betaSettings:
+  cloudSqlInstances: test=tcp:8080
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \
@@ -500,7 +536,6 @@ errorHandlers: test
 
 def test_admin_api_app_engine_apis_unsupported():
     """test_admin_api_app_engine_apis_unsupported"""
-    # caplog.set_level(logging.INFO)
     gcloud_version_describe_output = """
 appEngineApis: test
 """
@@ -700,9 +735,9 @@ runtimeConfig:
         assert result.exit_code == 0
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
-        assert "severity: unknown" in result.output
+        assert "severity: major" in result.output
         assert "path: runtimeConfig.pythonVersion" in result.output
-        assert 'reason: 4 is not a known value for runtimeConfig.pythonVersion' in result.output
+        assert 'reason: 4 is not a known value.' in result.output
 
 @pytest.mark.parametrize("runtime", _UNSUPPORTED_RUNTIMES, ids=_UNSUPPORTED_RUNTIMES)
 def test_admin_api_runtime_value_limited(runtime):
@@ -737,5 +772,5 @@ runtime: foo
         assert "major: 1" in result.output
         assert "incompatible_features" in result.output
         assert "path: runtime" in result.output
-        assert "severity: unknown" in result.output
-        assert "foo is not a known value for runtime" in result.output
+        assert "severity: major" in result.output
+        assert "foo is not a known value." in result.output

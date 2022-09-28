@@ -967,6 +967,58 @@ runtime: python
             assert expected_allow_unauthenticated_flag in result.output
             assert expected_labels_flag in result.output
 
+def test_cloud_sql_instances_single_valid():
+    """test_cloud_sql_instances_single_valid"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+beta_settings:
+  cloud_sql_instances: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_output_flag = "--add-cloudsql-instances=foo"
+            assert expected_output_flag in result.output
+
+def test_cloud_sql_instances_single_invalid():
+    """test_cloud_sql_instances_single_invalid"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+beta_settings:
+  cloud_sql_instances: foo=tcp:8080
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_output_flag = "--add-cloudsql-instances"
+            assert unexpected_output_flag not in result.output
+
+def test_cloud_sql_instances_multiple_valid():
+    """test_cloud_sql_instances_multiple_valid"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+beta_settings:
+  cloud_sql_instances: test,foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_output_flag = "--add-cloudsql-instances=test,foo"
+            assert expected_output_flag in result.output
+
+def test_cloud_sql_instances_mixed_valid_and_invalid():
+    """test_cloud_sql_instances_mixed_valid_and_invalid"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+beta_settings:
+    cloud_sql_instances: test,foo=tcp:8080
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_output_flag = "--add-cloudsql-instances=test"
+            assert expected_output_flag in result.output
+
 ##################### Tests using deployed version (admin API) input ###################
 
 def test_admin_api_default_service_name():
@@ -2030,3 +2082,59 @@ runtime: {runtime}
             unexpected_warning_msg = '[Warning] Entrypoint "ack" is not \
 found at existing Procfile, please add "web: ack" to the existing Procfile.'
             assert unexpected_warning_msg not in result.output
+
+def test_admin_api_cloud_sql_instances_single_valid():
+    """test_admin_api_cloud_sql_instances_single_valid"""
+    gcloud_version_describe_output = """
+betaSettings:
+  cloudSqlInstances: test"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_output_flag = "--add-cloudsql-instances=test"
+        assert expected_output_flag in result.output
+
+def test_admin_api_cloud_sql_instances_single_invalid():
+    """test_admin_api_cloud_sql_instances_single_invalid"""
+    gcloud_version_describe_output = """
+betaSettings:
+  cloudSqlInstances: test=tcp:8080"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_output_flag = "--add-cloudsql-instances"
+        assert unexpected_output_flag not in result.output
+
+def test_admin_api_cloud_sql_instances_multiple_valid():
+    """test_admin_api_cloud_sql_instances_multiple_valid"""
+    gcloud_version_describe_output = """
+betaSettings:
+  cloudSqlInstances: test,foo"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_output_flag = "--add-cloudsql-instances=test,foo"
+        assert expected_output_flag in result.output
+
+def test_admin_api_cloud_sql_instances_mixed_valid_and_invalid():
+    """test_admin_api_cloud_sql_instances_mixed_valid_and_invalid"""
+    gcloud_version_describe_output = """
+betaSettings:
+  cloudSqlInstances: test,foo=tcp:8080"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_output_flag = "--add-cloudsql-instances=test"
+        assert expected_output_flag in result.output

@@ -13,11 +13,6 @@
 ---
 unsupported:
 - path:
-    admin_api: betaSettings.cloudSqlInstances
-    app_yaml: beta_settings.cloud_sql_instances
-  severity: major
-  reason: Cloud Run does not support TCP based CloudSQL instance configs.
-- path:
     admin_api: resources.volumes
     app_yaml: resources.volumes
   severity: major
@@ -171,6 +166,14 @@ value_limited:
     - 3
   severity: major
   reason: Cloud Run supports Python 3 runtime only.
+- path:
+    admin_api: betaSettings.cloudSqlInstances
+    app_yaml: beta_settings.cloud_sql_instances
+  valid_format: ^((?!w?=tcp:[0-9]+).)*$
+  severity: major
+  reason: Cloud Run does not support TCP based CloudSQL instance configs.
+  flags:
+  - --add-cloudsql-instances
 - path:
     admin_api: runtime
     app_yaml: runtime

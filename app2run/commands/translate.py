@@ -27,6 +27,8 @@ from app2run.commands.translation_rules.timeout import translate_timeout_feature
 from app2run.commands.translation_rules.cpu_memory import translate_app_resources
 from app2run.commands.translation_rules.supported_features import translate_supported_features
 from app2run.commands.translation_rules.required_flags import translate_add_required_flags
+from app2run.commands.translation_rules.cloud_sql_instances import \
+    traqnslate_cloud_sql_instances_features
 from app2run.common.util import flatten_keys, validate_input
 
 @click.command(short_help="Translate an App Engine app.yaml or deployed version to \
@@ -91,14 +93,17 @@ def _get_cloud_run_flags(input_data: Dict, input_flatten_as_appyaml: Dict, input
         feature_config.range_limited)
     supported_features = get_feature_list_by_input_type(InputType.APP_YAML, \
         feature_config.supported)
+    value_limited_features_app_yaml = get_feature_list_by_input_type(InputType.APP_YAML, \
+        feature_config.value_limited)
     return translate_concurrent_requests_features(input_flatten_as_appyaml, \
         range_limited_features_app_yaml) + \
            translate_scaling_features(input_flatten_as_appyaml, range_limited_features_app_yaml) + \
            translate_timeout_features(input_flatten_as_appyaml) + \
            translate_app_resources(input_flatten_as_appyaml, range_limited_features_app_yaml) + \
            translate_supported_features(input_flatten_as_appyaml, supported_features, project) + \
-           translate_entrypoint_features(input_data, input_type, \
-            supported_features, command) + \
+           translate_entrypoint_features(input_data, input_type, supported_features, command) + \
+           traqnslate_cloud_sql_instances_features(input_flatten_as_appyaml, \
+            value_limited_features_app_yaml) + \
            translate_add_required_flags()
 
 def _get_service_name(input_data: Dict):
