@@ -20,7 +20,7 @@ from click.testing import CliRunner
 from app2run.main import cli
 
 runner = CliRunner()
-_UNSUPPORTED_RUNTIMES = ['python27', 'php', 'php55', 'php72', 'php73', 'php74', 'php81', 'go111']
+_UNSUPPORTED_RUNTIMES = ['python27', 'php55', 'go111']
 
 ##################### Tests using app.yaml input ###################
 
