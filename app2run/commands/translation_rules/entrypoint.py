@@ -21,6 +21,13 @@ from app2run.common.util import ENTRYPOINT_FEATURE_KEYS, RUNTIMES_WITH_PROCFILE_
     flatten_keys, generate_output_flags
 from app2run.config.feature_config_loader import InputType
 
+_DEFAULT_PYTHON_ENTRYPOINT = 'gunicorn -b :$PORT main:app'
+# Cloud Run service must listen on 0.0.0.0 host,
+# ref https://cloud.google.com/run/docs/container-contract#port
+_DEFAULT_RUBY_ENTRYPOINT = 'bundle exec ruby app.rb -o 0.0.0.0'
+_DEFAULT_ENTRYPOINT_INFO_FORMAT = '[Info] Default entrypoint point for {runtime} is : \
+"{entrypoint}", retry `app2run translate` with the --command="{entrypoint}" flag.'
+
 def translate_entrypoint_features(input_data: Dict, input_type: InputType, \
     supported_features_app_yaml: Dict, command: str=None) -> List[str]:
     """Tranlsate entrypoint from App Engine app to entrypoint for equivalent Cloud Run app."""
@@ -36,6 +43,7 @@ def _generate_entrypoint_admin_api(input_key_value_pairs: Dict, command: str=Non
     if command is None:
         click.echo('Warning: entrypoint for the app is not detected/provided, if an entrypoint is \
 needed to start the app, please use the `--command` flag to specify the entrypoint for the App.')
+        _print_default_entryoint_per_runtime(input_key_value_pairs)
         return []
     if 'runtime' in input_key_value_pairs:
         runtime = input_key_value_pairs['runtime']
@@ -46,28 +54,26 @@ needed to start the app, please use the `--command` flag to specify the entrypoi
     return generate_output_flags(['--command'], f'"{command}"')
 
 def _generate_entrypoint_app_yaml(input_key_value_pairs: Dict, supported_features_app_yaml: Dict):
-    feature_key = 'entrypoint'
-    if feature_key not in input_key_value_pairs:
-        return []
-
     if _should_generate_procfile(input_key_value_pairs):
         runtime = input_key_value_pairs['runtime']
         entrypoint = _get_entrypoint_from_input(input_key_value_pairs)
+        # entrypoint is not specified at input, use the default entrypoint
+        if not entrypoint:
+            entrypoint = _get_default_entrypoint_by_runtime(input_key_value_pairs)
         _generate_procfile(runtime, entrypoint)
         return []
-
-    feature = supported_features_app_yaml[feature_key]
-    input_value = f'"{input_key_value_pairs[feature_key]}"'
-    return generate_output_flags(feature.flags, input_value)
+    feature_key = 'entrypoint'
+    if feature_key in input_key_value_pairs:
+        feature = supported_features_app_yaml[feature_key]
+        input_value = f'"{input_key_value_pairs[feature_key]}"'
+        return generate_output_flags(feature.flags, input_value)
+    return []
 
 def _should_generate_procfile(input_key_value_pairs: Dict) -> bool:
     if 'runtime' not in input_key_value_pairs:
         return False
     runtime = input_key_value_pairs['runtime']
-    entrypoint = _get_entrypoint_from_input(input_key_value_pairs)
     if runtime not in RUNTIMES_WITH_PROCFILE_ENTRYPOINT:
-        return False
-    if entrypoint == '':
         return False
     return True
 
@@ -100,3 +106,41 @@ def _get_entrypoint_from_input(input_key_value_pairs: Dict) -> str:
         if key in input_key_value_pairs:
             return input_key_value_pairs[key]
     return ''
+
+def _get_default_entrypoint_by_runtime(input_key_value_pairs) -> str:
+    if 'runtime' in input_key_value_pairs:
+        runtime = input_key_value_pairs['runtime']
+        if runtime.startswith('python'):
+            # Check if requirements.txt exists and contains gunicorn as a dependency
+            _generate_requirement_file()
+            return _DEFAULT_PYTHON_ENTRYPOINT
+        if runtime.startswith('ruby'):
+            return _DEFAULT_RUBY_ENTRYPOINT
+    return ''
+
+def _generate_requirement_file():
+    _file_exist = path.exists('requirements.txt')
+    if _file_exist:
+        with open('requirements.txt', 'r', encoding='utf8') as file:
+            _file_content = file.read()
+        if "gunicorn" not in _file_content:
+            click.echo('[Warning] gunicorn is not found at requirements.txt, \
+please add "gunicorn" to the existing requirements.txt in order to deploy Apps \
+from source to Cloud Run using Buildpacks.')
+    else:
+        with open('requirements.txt', 'w', encoding='utf8') as file:
+            file.write('gunicorn')
+            click.echo('[Info] A requirements.txt is created with gunicorn as a dependency, \
+this is needed to deploy Apps from source with python runtime to Cloud Run using Buildpacks.')
+
+def _print_default_entryoint_per_runtime(input_key_value_pairs):
+    if 'runtime' in input_key_value_pairs:
+        runtime = input_key_value_pairs['runtime']
+        if runtime.startswith('python'):
+            click.echo(_DEFAULT_ENTRYPOINT_INFO_FORMAT.format(runtime=runtime, \
+                entrypoint=_DEFAULT_PYTHON_ENTRYPOINT))
+            click.echo(f'[Info] Add "gunicorn" as a dependency to requirements.txt because it \
+is used for the {runtime}\'s default entrypoint "{_DEFAULT_PYTHON_ENTRYPOINT}"')
+        if runtime.startswith('ruby'):
+            click.echo(_DEFAULT_ENTRYPOINT_INFO_FORMAT.format(runtime=runtime, \
+                entrypoint=_DEFAULT_RUBY_ENTRYPOINT))

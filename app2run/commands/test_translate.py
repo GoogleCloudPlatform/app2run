@@ -19,7 +19,8 @@ from os import path
 import pytest
 from click.testing import CliRunner
 from app2run.main import cli
-from app2run.common.util import RUNTIMES_WITH_PROCFILE_ENTRYPOINT
+from app2run.common.util import RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, RUBY_RUNTIMES_WITH_PROCFILE_ENTRYPOINT
 
 runner = CliRunner()
 
@@ -718,6 +719,103 @@ resources:
             result = runner.invoke(cli, ['translate'])
             expected_memory_flag = "--memory=32Gi"
             assert expected_memory_flag in result.output
+
+@pytest.mark.parametrize("runtime", PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_entrypoint_not_found_requirements_txt_not_exist_python_runtime(runtime):
+    """test_entrypoint_not_found_requirements_txt_not_exist_python_runtime"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write(f"""
+runtime: {runtime}
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'gunicorn -b :$PORT main:app' in procfile_content
+            requirements_txt_exists = path.exists('requirements.txt')
+            assert requirements_txt_exists is True
+            with open('requirements.txt', 'r', encoding='utf8') as file:
+                requirements_txt_content = file.read()
+                assert 'gunicorn' in requirements_txt_content
+
+@pytest.mark.parametrize("runtime", PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_entrypoint_not_found_requirements_txt_exist_contains_gunicorn_python_runtime(runtime):
+    """test_entrypoint_not_found_requirements_txt_exist_contains_gunicorn_python_runtime"""
+    with runner.isolated_filesystem():
+        with open('requirements.txt', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+gunicorn
+            """)
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write(f"""
+runtime: {runtime}
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            requirements_txt_warning_msg = '[Warning] gunicorn is not found at requirements.txt, \
+please add "gunicorn" to the existing requirements.txt in order to deploy Apps \
+from source to Cloud Run using Buildpacks.'
+            assert requirements_txt_warning_msg not in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'gunicorn -b :$PORT main:app' in procfile_content
+
+@pytest.mark.parametrize("runtime", PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_entrypoint_not_found_requirements_txt_exist_not_contains_gunicorn_python_runtime(runtime):
+    """test_entrypoint_not_found_requirements_txt_exist_not_contains_gunicorn_python_runtime"""
+    with runner.isolated_filesystem():
+        with open('requirements.txt', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+foo
+            """)
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write(f"""
+runtime: {runtime}
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            requirements_txt_warning_msg = '[Warning] gunicorn is not found at requirements.txt, \
+please add "gunicorn" to the existing requirements.txt in order to deploy Apps \
+from source to Cloud Run using Buildpacks.'
+            assert requirements_txt_warning_msg in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'gunicorn -b :$PORT main:app' in procfile_content
+
+@pytest.mark.parametrize("runtime", RUBY_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=RUBY_RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_entrypoint_not_found_ruby_runtime(runtime):
+    """test_entrypoint_not_found_ruby_runtime"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write(f"""
+runtime: {runtime}
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'bundle exec ruby app.rb -o 0.0.0.0' in procfile_content
 
 def test_entrypoint_found():
     """test_entrypoint_found"""
@@ -1937,6 +2035,48 @@ env: flexible
             expected_output = "Warning: entrypoint for the app is not detected/provided, \
 if an entrypoint is needed to start the app, please use the `--command` flag to specify \
 the entrypoint for the App."
+            assert expected_output in result.output
+
+@pytest.mark.parametrize("runtime", PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_admin_api_entrypoint_not_provided_from_cli_command_flag_python_runtime(runtime):
+    """test_admin_api_entrypoint_not_provided_from_cli_command_flag_python_runtime"""
+    # isolated filesystem is needed for entrypoint tests because it involves generating a Procfile.
+    with runner.isolated_filesystem():
+        gcloud_version_describe_output = f"""
+runtime: {runtime}
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            expected_output = f"""[Info] Default entrypoint point for {runtime} is : \
+"gunicorn -b :$PORT main:app", retry `app2run translate` with the --command="gunicorn -b \
+:$PORT main:app" flag.
+[Info] Add "gunicorn" as a dependency to requirements.txt because \
+it is used for the {runtime}'s default entrypoint "gunicorn -b :$PORT main:app\""""
+            assert expected_output in result.output
+
+@pytest.mark.parametrize("runtime", RUBY_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=RUBY_RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_admin_api_entrypoint_not_provided_from_cli_command_flag_ruby_runtime(runtime):
+    """test_admin_api_entrypoint_not_provided_from_cli_command_flag_ruby_runtime"""
+    # isolated filesystem is needed for entrypoint tests because it involves generating a Procfile.
+    with runner.isolated_filesystem():
+        gcloud_version_describe_output = f"""
+runtime: {runtime}
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            expected_output = f"""[Info] Default entrypoint point for {runtime} is : \
+"bundle exec ruby app.rb -o 0.0.0.0", retry `app2run translate` with the --command="bundle \
+exec ruby app.rb -o 0.0.0.0" flag."""
             assert expected_output in result.output
 
 def test_admin_api_entrypoint_provided_from_cli_command_flag_all_runtimes():
