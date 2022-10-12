@@ -56,7 +56,7 @@ This step is needed for installing the `app2run` CLI tool in the later step, so 
 Verify that `/Library/Frameworks/Python.framework/Versions/PYTHON_VERSION/bin` is at the `$PATH`, for example:
 ```
 echo $PATH
-/Library/Frameworks/Python.framework/Versions/3.10/bin:/Users/yulingz/google-cloud-sdk/bin:/usr/local/git/current/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/local/go/bin 
+/Library/Frameworks/Python.framework/Versions/3.10/bin:/usr/local/git/current/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/local/go/bin 
 ```
 If `/Library/Frameworks/Python.framework/Versions/PYTHON_VERSION/bin` is not in the `$PATH`, add it:
 ```
@@ -66,7 +66,7 @@ export PATH="/Library/Frameworks/Python.framework/Versions/PYTHON_VERSION/bin:$P
 #### Linux
 Verify that `$HOME/.local/bin` is at the `$PATH`, for example:
 ```
-/usr/local/google/home/yulingz/.local/bin:/usr/lib/google-golang/bin:/usr/local/buildtools/java/jdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+/home/$USER/.local/bin:/usr/local/buildtools/java/jdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ```
 If `$HOME/.local/bin` is not in the `$PATH`, add it:
 ```
@@ -102,9 +102,9 @@ python3 -m pip --version
 ```
 Example output:
 ```
-pip 22.1.2 from /usr/local/google/home/yulingz/pyenvs/py3.9/lib/python3.9/site-packages/pip (python 3.9)
+pip 22.1.2 from /home/$USER/pyenvs/py3.9/lib/python3.9/site-packages/pip (python 3.9)
 ```
-Notice the pip package is at the virutual environment `/usr/local/google/home/yulingz/pyenvs/py3.9`.
+Notice the pip package is at the virutual environment ` /home/$USER/pyenvs/py3.9`.
 
 #### Create a pip alias:
 ```
@@ -119,7 +119,7 @@ deactivate
 <a name="app2run_install"></a>
 Download CLI source code:
 ```
-$ git clone "sso://team/app-engine-geryon-team/app2run"
+$ git clone "https://github.com/google/app2run"
 $ cd app2run
 ```
 Install CLI (run command in the `app2run` source code root directory):
@@ -218,7 +218,7 @@ gcloud run deploy my-service \
   --memory=32Gi \
   --command="gunicorn -b :$PORT main:app" \
   --set-env-vars="foo=bar" \
-  --service-account=yulingz-demo@appspot.gserviceaccount.com
+  --service-account=$PROJECT_ID@appspot.gserviceaccount.com
 ```
 
 From the app source code root directory, execute the `glcoud run deploy` command from the  `app2run translate` output, e.g.:
@@ -231,7 +231,7 @@ $ gcloud run deploy my-service \
   --memory=32Gi \
   --command="gunicorn -b :$PORT main:app" \
   --set-env-vars="foo=bar" \
-  --service-account=yulingz-demo@appspot.gserviceaccount.com
+  --service-account=$PROJECT_ID@appspot.gserviceaccount.com
 Deploying from source. To deploy a container use [--image]. See https://cloud.google.com/run/docs/deploying-source-code for more details.
 ...
 Building using Buildpacks and deploying container to Cloud Run service [my-service] in project XXX region XXX
@@ -269,32 +269,3 @@ $ app2run translate --service SERVICE_NAME --version VERSION_ID --target-service
 #### 4. Run the `gcloud run deploy` command generated from `app2run translate`.
 From the app source code root directory, execute the `glcoud run deploy` command
 from the `app2run translate` output. This step is the same as using `app.yaml` as an input.
-
-## Local development
-
-### Intall py.test
-
-```
-$ pip install pytest
-```
-### Install pylint
-
-```
-$ pip install pylint
-```
-
-### run unit tests
-
-```
-$ py.test
-```
-### run pylint
-```
-$ find . -type f -name "*.py" | xargs pylint
-```
-
-
-### Post for code review
-```
-$ git push origin HEAD:refs/for/main
-```
