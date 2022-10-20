@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Unit test for `app2run list-incompatible-features` command."""
+import tempfile
 from unittest.mock import patch
 import os
 import pytest
@@ -77,8 +78,9 @@ beta_settings:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['list-incompatible-features', '-o', 'html'])
+            tmp_dir = tempfile.gettempdir()
             assert result.exit_code == 0
-            assert "Html output of incompatible features: /tmp/" in result.output
+            assert f"Html output of incompatible features: {tmp_dir}" in result.output
 
 def test_appyaml_no_incompatibility_found():
     """test_appyaml_no_incompatibility_found"""
