@@ -1,25 +1,32 @@
 ## app2run
-app2run is a Python CLI tool to assist migration of App Engine applications to run in
-Cloud Run.
+`app2run` is a Python CLI tool to assist migration of App Engine applications to run in
+Cloud Run. It is intended to translate App Engine configuration into compatible Cloud Run configuration, and make it simple to deploy App Engine applications from source to Cloud Run with minimal changes.
 
-### Python versions supported
+### App Engine runtimes supported
+The `app2run` CLI tool supports translating the following App Engine runtimes:
+- [App Engine Standard Gen2 runtimes](https://cloud.google.com/appengine/docs/standard/runtimes)
+- [App Engine Flex runtimes](https://cloud.google.com/appengine/docs/flexible)
+
+### Report bug/feature request/feedback.
+Feedback is welcome, please file an issue [here](https://github.com/GoogleCloudPlatform/app2run/issues).
+
+## Install software dependencies
+### Install `gcloud`
+Follow the [gcloud installation guide](https://cloud.google.com/sdk/docs/install) to install `gcloud` in your environment. `gcloud` is used to deploy the application to Cloud Run.
+
+### Install Python3
+#### Python versions supported
 The app2run CLI tool is tested (unit tests passed) to run with the following Python versions:
 - Python 3.10
 - Python 3.9
 - Python 3.8
 - Python 3.7
 
-### App Engine runtimes supported
-The app2run CLI tool supports the following App Engine runtimes:
-- [App Engine Standard Gen2 runtimes](https://cloud.google.com/appengine/docs/standard/runtimes)
-- [App Engine Flex runtimes](https://cloud.google.com/appengine/docs/flexible)
-
-## Installation
-If you already have python3 (or virtualenv) and pip installed, skip over to the [Download and install app2run CLI](#app2run_install) step.
-### Install python3
+If you already have python3 (or virtualenv) and pip installed, skip over to the [Install app2run CLI](#app2run_install) step.
+#### Install python3
 Download the latest python3 from https://www.python.org/downloads/ and install it based on your OS type (MacOS/Windows/Linux).
 
-### Verify python version:
+#### Verify python version:
 ```
 $ python3 --version
 ```
@@ -28,7 +35,7 @@ Example output
 Python 3.10.4
 ```
 
-### Install pip
+#### Install pip
 Install `pip` following instructions at https://pip.pypa.io/en/stable/installation/. 
 
 Verify pip is installed:
@@ -41,7 +48,7 @@ Example output
 pip 22.0.4 from /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/pip (python 3.10)
 ```
 
-### Setup pip alias
+#### Setup pip alias
 
 Add the following line to local shell profile (e.g. `.zshrc` or `.bash_profile`):
 
@@ -49,56 +56,59 @@ Add the following line to local shell profile (e.g. `.zshrc` or `.bash_profile`)
 alias pip="python3 -m pip"
 ```
 
-### Set up $PATH
+#### Set up $PATH
+<a name="setup_path"></a>
 This step is needed for installing the `app2run` CLI tool in the later step, so that the locally compiled python CLI command (executable python script) is accessible locally. 
 
-#### MacOS
+##### MacOS
 Verify that `/Library/Frameworks/Python.framework/Versions/PYTHON_VERSION/bin` is at the `$PATH`, for example:
 ```
-echo $PATH
-/Library/Frameworks/Python.framework/Versions/3.10/bin:/usr/local/git/current/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/local/go/bin 
+$ echo $PATH
+/Library/Frameworks/Python.framework/Versions/3.10/bin:/usr/local/git/current/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin 
 ```
 If `/Library/Frameworks/Python.framework/Versions/PYTHON_VERSION/bin` is not in the `$PATH`, add it:
 ```
-export PATH="/Library/Frameworks/Python.framework/Versions/PYTHON_VERSION/bin:$PATH" # replace PYTHON_VERSION with the actual python version number installed at your environment.
+# replace PYTHON_VERSION with the actual python version number installed at your environment.
+
+$ export PATH="/Library/Frameworks/Python.framework/Versions/PYTHON_VERSION/bin:$PATH" 
 ```
 
-#### Linux
+##### Linux
 Verify that `$HOME/.local/bin` is at the `$PATH`, for example:
 ```
-/home/$USER/.local/bin:/usr/local/buildtools/java/jdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+/home/$USER/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ```
 If `$HOME/.local/bin` is not in the `$PATH`, add it:
 ```
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-### (Alternatively) Use a Python virtual environment
+#### (Alternatively) Use a Python virtual environment
 You might want to use a Python virtual environment if you would like to test the CLI with a specific version of Python in an isolated environment.
 
-#### Intall virtualenv
+##### Intall virtualenv
 Follow this [instruction](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#installing-virtualenv) to install `virtualenv` if not already done so.
 
-#### Create a virtual environment:
+##### Create a virtual environment:
 ```
-virtualenv my_env -p $PATH_TO_PYTHON_VERSION_EXECUTABLE
-
+$ virtualenv my_env -p $PATH_TO_PYTHON_VERSION_EXECUTABLE
+```
 e.g.
-
-virtualenv py3.9 -p /usr/local/bin/python3.9
+```
+$ virtualenv py3.9 -p /usr/local/bin/python3.9
 ```
 
-#### Activate a virtual environment:
+##### Activate a virtual environment:
 ```
-source py3.9/bin/activate
+$ source py3.9/bin/activate
 ```
-#### Verify Python version:
+##### Verify Python version:
 ```
-python3 --version
+$ python3 --version
 ```
-#### Verify pip version:
+##### Verify pip version:
 ```
-python3 -m pip --version
+$ python3 -m pip --version
 ```
 Example output:
 ```
@@ -106,27 +116,30 @@ pip 22.1.2 from /home/$USER/pyenvs/py3.9/lib/python3.9/site-packages/pip (python
 ```
 Notice the pip package is at the virutual environment ` /home/$USER/pyenvs/py3.9`.
 
-#### Create a pip alias:
+##### Create a pip alias:
 ```
-alias pip="python3 -m pip"
+$ alias pip="python3 -m pip"
 ```
 
-#### Exit a virtual environment (after done with testing):
+##### Exit a virtual environment (after done with testing):
 ```
-deactivate
+$ deactivate
 ```
-### Download and install app2run CLI
+### Install app2run CLI
 <a name="app2run_install"></a>
-Download CLI source code:
+
+#### Download CLI source code:
 ```
-$ git clone "https://github.com/google/app2run"
+$ git clone "https://github.com/GoogleCloudPlatform/app2run"
 $ cd app2run
 ```
-Install CLI (run command in the `app2run` source code root directory):
+
+#### Install CLI (run command in the `app2run` source code root directory):
 ```
 $ pip install --editable .
 ```
-Verify CLI is installed:
+
+#### Verify CLI is installed:
 ```
 $ app2run --help
 ```
@@ -144,7 +157,8 @@ Commands:
                               to Cloud Run.
   translate                   Translate an app.yaml to migrate to Cloud Run.
 ```
-If you get the `command not found: app2run` error, verify the $PATH by following the **Set up $PATH** step.
+
+If you get the `command not found: app2run` error, verify the $PATH by following the [Set up $PATH](#setup_path) step.
 
 ### Testing the app2run CLI with app.yaml as input
 An App Engine app.yaml can be used as an input for the `app2run` CLI.
@@ -186,14 +200,22 @@ incompatible_features:
   severity: major
 ```
 
+Use the `-o html` flag to get the same output in HTML format, e.g.:
+
+```
+$ app2run list-incompatible-features -o html
+list-incompatible-features output for app.yaml:
+
+Html output of incompatible features: /tmp/tmpgxu_myaq/incompatible_features.html
+```
+
 #### 2. Use the `app2run translate` command.
 Learn about the `app2run translate` command API:
 ```
 $ app2run translate -h
 ```
-Translate an App (run command from the the GAE App source code root directory, or use the `--appyaml` flag to provide the file path for a `app.yaml`):
 Translate an App (run command from the GAE App source code root directory,
-or use the `--appyaml` flag to provide the file path for a `app.yaml`):
+or use the `--appyaml` flag to provide the file path for a `app.yaml`), `--target-service` is used to specify a custom name for the target Cloud Run service:
 
 ```
 # from source code directory w/ app.ayml
@@ -221,7 +243,7 @@ gcloud run deploy my-service \
   --service-account=$PROJECT_ID@appspot.gserviceaccount.com
 ```
 
-From the app source code root directory, execute the `glcoud run deploy` command from the  `app2run translate` output, e.g.:
+From the app source code root directory, execute the `glcoud run deploy` command from the above `app2run translate` output, e.g.:
 
 ```
 $ gcloud run deploy my-service \
