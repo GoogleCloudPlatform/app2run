@@ -1060,7 +1060,8 @@ runtime: python
             result = runner.invoke(cli, ['translate'])
             expected_no_cpu_throttling_flag = "--no-cpu-throttling"
             expected_allow_unauthenticated_flag = "--allow-unauthenticated"
-            expected_labels_flag = "--labels=migrated-from=app-engine,app2run-version=0_1_0"
+            expected_labels_flag = "--labels=migrated-from=app-engine,migration-tool=app-to-run-py,\
+app2run-version=0_1_0"
             assert expected_no_cpu_throttling_flag in result.output
             assert expected_allow_unauthenticated_flag in result.output
             assert expected_labels_flag in result.output
@@ -1286,7 +1287,8 @@ runtime: python
         assert result.exit_code == 0
         expected_no_cpu_throttling_flag = "--no-cpu-throttling"
         expected_allow_unauthenticated_flag = "--allow-unauthenticated"
-        expected_labels_flag = "--labels=migrated-from=app-engine,app2run-version=0_1_0"
+        expected_labels_flag = "--labels=migrated-from=app-engine,migration-tool=app-to-run-py,\
+app2run-version=0_1_0"
         assert expected_no_cpu_throttling_flag in result.output
         assert expected_allow_unauthenticated_flag in result.output
         assert expected_labels_flag in result.output

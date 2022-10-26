@@ -29,6 +29,7 @@ def translate_add_required_flags() -> List[str]:
 def _get_labels() -> str:
     labels: List[str] = []
     labels.append('migrated-from=app-engine')
+    labels.append('migration-tool=app-to-run-py')
     version = pkg_resources.require('app2run')[0].version.replace('.', '_')
     labels.append(f'app2run-version={version}')
     return ",".join(labels)
