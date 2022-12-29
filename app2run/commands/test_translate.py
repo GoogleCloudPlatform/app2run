@@ -1,0 +1,2282 @@
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Unit test for `app2run translate` command."""
+from unittest.mock import patch
+import os
+from os import path
+import pytest
+from click.testing import CliRunner
+from app2run.main import cli
+from app2run.common.util import RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, RUBY_RUNTIMES_WITH_PROCFILE_ENTRYPOINT
+
+runner = CliRunner()
+
+##################### Tests using app.yaml input ###################
+
+def test_appyaml_not_found():
+    """test_appyaml_not_found"""
+    with runner.isolated_filesystem():
+        result = runner.invoke(cli, ['translate'])
+        assert result.exit_code == 0
+        assert "app.yaml does not exist in current directory, please use --appyaml flag to \
+specify the app.yaml location." \
+            in result.output
+
+def test_appyaml_empty():
+    """test_appyaml_empty"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            assert result.exit_code == 0
+            assert result.output == "app.yaml is empty.\n[Error] Failed to read input data.\n"
+
+def test_default_service_name():
+    """test_default_service_name"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_output = "gcloud run deploy default"
+            assert expected_output in result.output
+
+def test_custom_service_name_from_cloud_run_service_name_flag():
+    """test_custom_service_name_from_cloud_run_service_name_flag"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+service: test_service_name
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate', '--target-service', 'foo'])
+            expected_output = "gcloud run deploy foo"
+            assert expected_output in result.output
+
+def test_custom_service_name_from_app_yaml():
+    """test_custom_service_name_from_app_yaml"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+service: test_service_name
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_output = "gcloud run deploy test_service_name"
+            assert expected_output in result.output
+
+def test_standard_when_no_scaling_feature_found():
+    """test_standard_when_no_scaling_feature_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_flags = """--min-instances=0 \\
+  --max-instances=1000"""
+            assert unexpected_flags not in result.output
+
+def test_standard_automatic_scaling_with_valid_min():
+    """test_standard_automatic_scaling_with_valid_min"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    min_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--min-instances=1 "
+            assert expected_flags in result.output
+
+def test_standard_automatic_scaling_with_invalid_min_value():
+    """test_standard_automatic_scaling_with_invalid_min_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    min_instances: -1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_flags = "--min-instances\n"
+            assert unexpected_flags not in result.output
+
+def test_standard_automatic_scaling_with_valid_max_value():
+    """test_standard_automatic_scaling_with_valid_max_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    max_instances: 999
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--max-instances=999 "
+            assert expected_flags in result.output
+
+def test_standard_automatic_scaling_with_invalid_max_value():
+    """test_standard_automatic_scaling_with_invalid_max_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    max_instances: 1001
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--max-instances=1000 "
+            assert expected_flags in result.output
+
+def test_flex_when_no_scaling_feature_found():
+    """test_flex_when_no_scaling_feature_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_flags = """--min-instances=0 \\
+  --max-instances=1000"""
+            assert unexpected_flags not in result.output
+
+def test_flex_automatic_scaling_with_valid_min_value():
+    """test_flex_automatic_scaling_with_valid_min_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+automatic_scaling:
+    min_num_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--min-instances=1 "
+            assert expected_flags in result.output
+
+def test_flex_automatic_scaling_with_invalid_min_value():
+    """test_flex_automatic_scaling_with_invalid_min_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+automatic_scaling:
+    min_num_instances: -1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_flags = "--min-instances\n"
+            assert unexpected_flags not in result.output
+
+def test_flex_automatic_scaling_with_valid_max_value():
+    """test_automatic_scaling_with_valid_max_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+automatic_scaling:
+    max_num_instances: 999
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--max-instances=999 "
+            assert expected_flags in result.output
+
+def test_flex_automatic_scaling_with_invalid_max_value():
+    """test_automatic_scaling_with_invalid_max_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+automatic_scaling:
+    max_num_instances: 1001
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--max-instances=1000 "
+            assert expected_flags in result.output
+
+def test_manual_scaling_with_valid_instances_value():
+    """test_manual_scaling_with_valid_instances_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+manual_scaling:
+   instances: 10
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = """--min-instances=10 \\
+  --max-instances=10"""
+            assert expected_flags in result.output
+
+def test_manual_scaling_with_invalid_instances_value():
+    """test_manual_scaling_with_invalid_instances_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+manual_scaling:
+   instances: 1001
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = """--min-instances=1000 \\
+  --max-instances=1000"""
+            assert expected_flags in result.output
+
+def test_basic_scaling_with_valid_instances_value():
+    """test_basic_scaling_with_valid_instances_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+basic_scaling:
+   max_instances: 10
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = """--min-instances=10 \\
+  --max-instances=10"""
+            assert expected_flags in result.output
+
+def test_basic_scaling_with_invalid_instances_value():
+    """test_basic_scaling_with_invalid_instances_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+basic_scaling:
+   max_instances: 1001
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = """--min-instances=1000 \\
+  --max-instances=1000"""
+            assert expected_flags in result.output
+
+def test_flex_target_concurrent_automatic_scaling_not_specified():
+    """test_flex_target_concurrent_automatic_scaling_not_specified"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=1000"
+            assert expected_flags in result.output
+
+def test_flex_target_concurrent_requests_not_specified():
+    """test_flex_target_concurrent_requests_not_specified"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+automatic_scaling:
+    min_num_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=1000"
+            assert expected_flags in result.output
+
+def test_flex_target_concurrent_requests_specified_within_max_value():
+    """test_flex_target_concurrent_requests_specified_within_max_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+automatic_scaling:
+    target_concurrent_requests: 999
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=999"
+            assert expected_flags in result.output
+
+def test_flex_target_concurrent_requests_specified_gt_max_value():
+    """test_flex_target_concurrent_requests_specified_gt_max_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+automatic_scaling:
+    target_concurrent_requests: 1001
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=1000"
+            assert expected_flags in result.output
+
+def test_flex_target_concurrent_requests_invalid_value():
+    """test_flex_target_concurrent_requests_invalid_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+automatic_scaling:
+    target_concurrent_requests: 0
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_flags = "--concurrency"
+            assert unexpected_flags not in result.output
+
+def test_standard_max_concurrent_automatic_scaling_not_specified():
+    """test_standard_max_concurrent_automatic_scaling_not_specified"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=10 "
+            assert expected_flags in result.output
+
+def test_standard_max_concurrent_requests_not_specified():
+    """test_standard_max_concurrent_requests_not_specified"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    min_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=10 "
+            assert expected_flags in result.output
+
+def test_standard_max_concurrent_requests_specified_within_max_value():
+    """test_standard_max_concurrent_requests_specified_within_max_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    max_concurrent_requests: 999
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=999"
+            assert expected_flags in result.output
+
+def test_standard_max_concurrent_requests_specified_gt_max_value():
+    """test_standard_max_concurrent_requests_specified_gt_max_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    max_concurrent_requests: 1001
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--concurrency=1000"
+            assert expected_flags in result.output
+
+def test_standard_max_concurrent_requests_invalid_value():
+    """test_standard_max_concurrent_requests_invalid_value"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    max_concurrent_requests: 0
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_flags = "--concurrency"
+            assert unexpected_flags not in result.output
+def test_timeout_flex_env():
+    """test_timeout_flex_env"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--timeout=60m"
+            assert expected_flags in result.output
+
+def test_timeout_standard_env_no_scaling_feature():
+    """test_timeout_standard_env_no_scaling_feature"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_flags = "--timeout"
+            assert unexpected_flags not in result.output
+
+def test_timeout_standard_env_automatic_scaling():
+    """test_timeout_standard_env_automatic_scaling"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    min_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--timeout=10m"
+            assert expected_flags in result.output
+
+def test_timeout_standard_env_manual_scaling():
+    """test_timeout_standard_env_manual_scaling"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+manual_scaling:
+    instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--timeout=60m"
+            assert expected_flags in result.output
+
+def test_timeout_standard_env_basic_scaling():
+    """test_timeout_standard_env_basic_scaling"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+basic_scaling:
+    max_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flags = "--timeout=60m"
+            assert expected_flags in result.output
+
+def test_cpu_memory_standard_instance_class_not_specified():
+    """test_cpu_memory_standard_instance_class_not_specified"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_cpu_flag = "--cpu="
+            unexpected_memory_flag = "--memory"
+            assert unexpected_cpu_flag not in result.output
+            assert unexpected_memory_flag not in result.output
+
+def test_cpu_memory_standard_automatic_scaling_default():
+    """test_cpu_memory_standard_automatic_scaling_default"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+automatic_scaling:
+    min_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=1"
+            expected_memory_flag = "--memory=0.5Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_manual_scaling_default():
+    """test_cpu_memory_standard_manual_scaling_default"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+manual_scaling:
+    instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=2"
+            expected_memory_flag = "--memory=0.5Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_basic_scaling_default():
+    """test_cpu_memory_standard_basic_scaling_default"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+basic_scaling:
+    max_instances: 1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=2"
+            expected_memory_flag = "--memory=0.5Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_f1():
+    """test_cpu_memory_standard_instance_class_f1"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: F1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=1"
+            expected_memory_flag = "--memory=0.5Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_f2():
+    """test_cpu_memory_standard_instance_class_f2"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: F2
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=2"
+            expected_memory_flag = "--memory=0.5Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_f4():
+    """test_cpu_memory_standard_instance_class_f4"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: F4
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=4"
+            expected_memory_flag = "--memory=2Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_f4_1g():
+    """test_cpu_memory_standard_instance_class_f4_1g"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: F4_1G
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=4"
+            expected_memory_flag = "--memory=2Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_b1():
+    """test_cpu_memory_standard_instance_class_b1"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: B1
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=1"
+            expected_memory_flag = "--memory=0.5Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_b2():
+    """test_cpu_memory_standard_instance_class_b2"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: B2
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=2"
+            expected_memory_flag = "--memory=0.5Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_b4():
+    """test_cpu_memory_standard_instance_class_b4"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: B4
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=4"
+            expected_memory_flag = "--memory=2Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_b4_1g():
+    """test_cpu_memory_standard_instance_class_b4_1g"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: B4_1G
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=4"
+            expected_memory_flag = "--memory=2Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_standard_instance_class_b8():
+    """test_cpu_memory_standard_instance_class_b8"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+instance_class: B8
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=6"
+            expected_memory_flag = "--memory=4Gi"
+            assert expected_cpu_flag in result.output
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_flex_cpu_memory_not_specified():
+    """test_cpu_memory_flex_cpu_memory_not_specified"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_cpu_flag = "--cpu="
+            unexpected_memory_flag = "--memory"
+            assert unexpected_cpu_flag not in result.output
+            assert unexpected_memory_flag not in result.output
+
+def test_cpu_memory_flex_cpu_specified_lt_max():
+    """test_cpu_memory_flex_cpu_specified_lt_max"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+resources:
+    cpu: 7
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=7"
+            assert expected_cpu_flag in result.output
+
+def test_cpu_memory_flex_cpu_specified_gt_max():
+    """test_cpu_memory_flex_cpu_specified_gt_max"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+resources:
+    cpu: 9
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_cpu_flag = "--cpu=8"
+            assert expected_cpu_flag in result.output
+
+def test_cpu_memory_flex_memory_gb_specified_lt_max():
+    """test_cpu_memory_flex_memory_gb_specified_lt_max"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+resources:
+    memory_gb: 31
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_memory_flag = "--memory=31Gi"
+            assert expected_memory_flag in result.output
+
+def test_cpu_memory_flex_memory_gb_specified_gt_max():
+    """test_cpu_memory_flex_memory_gb_specified_gt_max"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env: flex
+resources:
+    memory_gb: 33
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_memory_flag = "--memory=32Gi"
+            assert expected_memory_flag in result.output
+
+@pytest.mark.parametrize("runtime", PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_entrypoint_not_found_requirements_txt_not_exist_python_runtime(runtime):
+    """test_entrypoint_not_found_requirements_txt_not_exist_python_runtime"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write(f"""
+runtime: {runtime}
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'gunicorn -b :$PORT main:app' in procfile_content
+            requirements_txt_exists = path.exists('requirements.txt')
+            assert requirements_txt_exists is True
+            with open('requirements.txt', 'r', encoding='utf8') as file:
+                requirements_txt_content = file.read()
+                assert 'gunicorn' in requirements_txt_content
+
+@pytest.mark.parametrize("runtime", PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_entrypoint_not_found_requirements_txt_exist_contains_gunicorn_python_runtime(runtime):
+    """test_entrypoint_not_found_requirements_txt_exist_contains_gunicorn_python_runtime"""
+    with runner.isolated_filesystem():
+        with open('requirements.txt', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+gunicorn
+            """)
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write(f"""
+runtime: {runtime}
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            requirements_txt_warning_msg = '[Warning] gunicorn is not found at requirements.txt, \
+please add "gunicorn" to the existing requirements.txt in order to deploy Apps \
+from source to Cloud Run using Buildpacks.'
+            assert requirements_txt_warning_msg not in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'gunicorn -b :$PORT main:app' in procfile_content
+
+@pytest.mark.parametrize("runtime", PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_entrypoint_not_found_requirements_txt_exist_not_contains_gunicorn_python_runtime(runtime):
+    """test_entrypoint_not_found_requirements_txt_exist_not_contains_gunicorn_python_runtime"""
+    with runner.isolated_filesystem():
+        with open('requirements.txt', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+foo
+            """)
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write(f"""
+runtime: {runtime}
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            requirements_txt_warning_msg = '[Warning] gunicorn is not found at requirements.txt, \
+please add "gunicorn" to the existing requirements.txt in order to deploy Apps \
+from source to Cloud Run using Buildpacks.'
+            assert requirements_txt_warning_msg in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'gunicorn -b :$PORT main:app' in procfile_content
+
+@pytest.mark.parametrize("runtime", RUBY_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=RUBY_RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_entrypoint_not_found_ruby_runtime(runtime):
+    """test_entrypoint_not_found_ruby_runtime"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write(f"""
+runtime: {runtime}
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'bundle exec ruby app.rb -o 0.0.0.0' in procfile_content
+
+def test_entrypoint_found():
+    """test_entrypoint_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flag = "--command=\"foo\""
+            assert expected_flag in result.output
+
+def test_entrypoint_found_python_runtime():
+    """test_entrypoint_found_python_runtime"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: foo' in procfile_content
+
+def test_entrypoint_python_runtime_with_existing_procfile_with_entrypoint():
+    """test_entrypoint_python_runtime_with_existing_procfile_with_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+web: foo
+            """)
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_warning_msg = '[Warning] Entrypoint "foo" is not \
+found at existing Procfile, please add "web: foo" to the existing Procfile.'
+            assert un_expected_warning_msg not in result.output
+
+def test_entrypoint_python_runtime_with_existing_procfile_no_entrypoint():
+    """test_entrypoint_python_runtime_with_existing_procfile_no_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+            """)
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            expected_warning_msg = '[Warning] Entrypoint "foo" is not found at \
+existing Procfile, please add "web: foo" to the existing Procfile.'
+            assert un_expected_flag not in result.output
+            assert expected_warning_msg in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: foo' not in procfile_content
+
+def test_entrypoint_found_ruby_runtime():
+    """test_entrypoint_found_ruby_runtime"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: ruby
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: foo' in procfile_content
+
+def test_entrypoint_ruby_runtime_with_existing_procfile_with_entrypoint():
+    """test_entrypoint_ruby_runtime_with_existing_procfile_with_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+web: foo
+            """)
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: ruby
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_warning_msg = '[Warning] Entrypoint "foo" is not \
+found at existing Procfile, please add "web: foo" to the existing Procfile.'
+            assert un_expected_warning_msg not in result.output
+
+def test_entrypoint_ruby_runtime_with_existing_procfile_no_entrypoint():
+    """test_entrypoint_ruby_runtime_with_existing_procfile_no_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+            """)
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: ruby
+entrypoint: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            un_expected_flag = "--command=\"foo\""
+            expected_warning_msg = '[Warning] Entrypoint "foo" is not found \
+at existing Procfile, please add "web: foo" to the existing Procfile.'
+            assert un_expected_flag not in result.output
+            assert expected_warning_msg in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: foo' not in procfile_content
+
+def test_env_variables_found():
+    """test_env_variables_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env_variables:
+    foo: bar
+    foo2: bar2
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flag = "--set-env-vars=\"foo=bar,foo2=bar2\""
+            assert expected_flag in result.output
+
+def test_env_variables_value_has_comma_found():
+    """test_env_variables_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+env_variables:
+    foo: bar
+    foo2: bar1,bar2
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flag = "--set-env-vars=\"^@^foo=bar@foo2=bar1,bar2\""
+            assert expected_flag in result.output
+
+def test_vpc_access_connector_name_found():
+    """test_vpc_access_connector_name_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+vpc_access_connector:
+    name: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flag = "--vpc-connector=\"foo\""
+            assert expected_flag in result.output
+
+def test_vpc_access_connector_egress_settings_found():
+    """test_vpc_access_connector_egress_settings_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+vpc_access_connector:
+    egress_settings: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flag = "--vpc-egress=\"foo\""
+            assert expected_flag in result.output
+
+def test_service_account_found():
+    """test_service_account_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+service_account: foo@bar.com
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_flag = "--service-account=\"foo@bar.com\""
+            assert expected_flag in result.output
+
+def test_service_account_not_found_project_flag_specified_cli():
+    """test_service_account_not_found_project_flag_specified_cli"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate', '--project', 'test'])
+            expected_flag = "--service-account=\"test@appspot.gserviceaccount.com\""
+            assert expected_flag in result.output
+
+def test_supported_features_not_found():
+    """test_supported_features_not_found"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_command_flag = "--command"
+            unexpected_set_env_vars_flag="--set-env-vars"
+            unexpected_vpc_connector_flag="--vpc-connector"
+            unexpected_vpc_egress_flag="--vpc-egress"
+            assert unexpected_command_flag not in result.output
+            assert unexpected_set_env_vars_flag not in result.output
+            assert unexpected_vpc_connector_flag  not in result.output
+            assert unexpected_vpc_egress_flag not in result.output
+
+def test_required_flags():
+    """test_required_flags"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+runtime: python
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_no_cpu_throttling_flag = "--no-cpu-throttling"
+            expected_allow_unauthenticated_flag = "--allow-unauthenticated"
+            expected_labels_flag = "--labels=migrated-from=app-engine,migration-tool=app-to-run-py,\
+app2run-version=0_1_0"
+            assert expected_no_cpu_throttling_flag in result.output
+            assert expected_allow_unauthenticated_flag in result.output
+            assert expected_labels_flag in result.output
+
+def test_cloud_sql_instances_single_valid():
+    """test_cloud_sql_instances_single_valid"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+beta_settings:
+  cloud_sql_instances: foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_output_flag = "--add-cloudsql-instances=foo"
+            assert expected_output_flag in result.output
+
+def test_cloud_sql_instances_single_invalid():
+    """test_cloud_sql_instances_single_invalid"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+beta_settings:
+  cloud_sql_instances: foo=tcp:8080
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            unexpected_output_flag = "--add-cloudsql-instances"
+            assert unexpected_output_flag not in result.output
+
+def test_cloud_sql_instances_multiple_valid():
+    """test_cloud_sql_instances_multiple_valid"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+beta_settings:
+  cloud_sql_instances: test,foo
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_output_flag = "--add-cloudsql-instances=test,foo"
+            assert expected_output_flag in result.output
+
+def test_cloud_sql_instances_mixed_valid_and_invalid():
+    """test_cloud_sql_instances_mixed_valid_and_invalid"""
+    with runner.isolated_filesystem():
+        with open('app.yaml', 'w', encoding='utf8') as appyaml:
+            appyaml.write("""
+beta_settings:
+    cloud_sql_instances: test,foo=tcp:8080
+            """)
+            appyaml.close()
+            result = runner.invoke(cli, ['translate'])
+            expected_output_flag = "--add-cloudsql-instances=test"
+            assert expected_output_flag in result.output
+
+##################### Tests using deployed version (admin API) input ###################
+
+def test_admin_api_default_service_name():
+    """test_admin_api_default_service_name"""
+    gcloud_version_describe_output = """
+env: flex
+id: dummy-python
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_output = "gcloud run deploy default"
+        assert expected_output in result.output
+
+def test_admin_api_custom_service_name_from_cloud_run_service_name_flag():
+    """test_admin_api_custom_service_name_from_cloud_run_service_name_flag"""
+    gcloud_version_describe_output = """
+runtime: python
+service: test_service_name
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test', \
+                '--target-service', 'foo-name'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_output = "gcloud run deploy foo-name"
+        assert expected_output in result.output
+
+def test_admin_api_custom_service_name_from_gcloud_describe_output():
+    """test_admin_api_custom_service_name_from_gcloud_describe_output"""
+    gcloud_version_describe_output = """
+runtime: python
+service: test_service_name
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_output = "gcloud run deploy test_service_name"
+        assert expected_output in result.output
+
+def test_admin_api_env_variables_found():
+    """test_admin_api_env_variables_found"""
+    gcloud_version_describe_output = """
+envVariables:
+    foo: bar
+    foo2: bar2
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--set-env-vars=\"foo=bar,foo2=bar2\""
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_env_variables_value_has_comma_found():
+    """test_admin_api_env_variables_found"""
+    gcloud_version_describe_output = """
+envVariables:
+    foo: bar
+    foo2: bar1,bar2
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--set-env-vars=\"^@^foo=bar@foo2=bar1,bar2\""
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_vpc_access_connector_name_found():
+    """test_admin_api_vpc_access_connector_name_found"""
+    gcloud_version_describe_output = """
+vpcAccessConnector:
+    name: foo
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--vpc-connector=\"foo\""
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_vpc_access_connector_egress_settings_found():
+    """test_admin_api_vpc_access_connector_egress_settings_found"""
+    gcloud_version_describe_output = """
+vpcAccessConnector:
+    egressSettings: foo
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--vpc-egress=\"foo\""
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_service_account_found():
+    """test_admin_api_service_account_found"""
+    gcloud_version_describe_output = """
+serviceAccount: foo@bar.com
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--service-account=\"foo@bar.com\""
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_service_account_not_found_project_flag_specified_cli():
+    """test_admin_api_service_account_not_found_project_flag_specified_cli"""
+    gcloud_version_describe_output = """
+runtime: python
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--service-account=\"test@appspot.gserviceaccount.com\""
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_supported_features_not_found():
+    """test_admin_api_supported_features_not_found"""
+    gcloud_version_describe_output = """
+runtime: python
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_set_env_vars_flag="--set-env-vars"
+        unexpected_vpc_connector_flag="--vpc-connector"
+        unexpected_vpc_egress_flag="--vpc-egress"
+        assert unexpected_set_env_vars_flag not in result.output
+        assert unexpected_vpc_connector_flag  not in result.output
+        assert unexpected_vpc_egress_flag not in result.output
+
+def test_admin_api_required_flags():
+    """test_admin_api_required_flags"""
+    gcloud_version_describe_output = """
+runtime: python
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_no_cpu_throttling_flag = "--no-cpu-throttling"
+        expected_allow_unauthenticated_flag = "--allow-unauthenticated"
+        expected_labels_flag = "--labels=migrated-from=app-engine,migration-tool=app-to-run-py,\
+app2run-version=0_1_0"
+        assert expected_no_cpu_throttling_flag in result.output
+        assert expected_allow_unauthenticated_flag in result.output
+        assert expected_labels_flag in result.output
+
+def test_admin_api_flex_target_concurrent_automatic_scaling_not_specified():
+    """test_admin_api_flex_target_concurrent_automatic_scaling_not_specified"""
+    gcloud_version_describe_output = """
+env: flexible
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=1000"
+        assert expected_flags in result.output
+
+def test_admin_api_flex_target_concurrent_requests_not_specified():
+    """test_admin_api_flex_target_concurrent_requests_not_specified"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    minTotalInstances: 1"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=1000"
+        assert expected_flags in result.output
+
+def test_admin_api_flex_target_concurrent_requests_specified_within_max_value():
+    """test_admin_api_flex_target_concurrent_requests_specified_within_max_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    targetConcurrentRequests: 999"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=999"
+        assert expected_flags in result.output
+
+def test_admin_api_flex_target_concurrent_requests_specified_gt_max_value():
+    """test_admin_api_flex_target_concurrent_requests_specified_gt_max_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    targetConcurrentRequests: 1001"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=1000"
+        assert expected_flags in result.output
+
+def test_admin_api_flex_target_concurrent_requests_invalid_value():
+    """test_admin_api_flex_target_concurrent_requests_invalid_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    targetConcurrentRequests: 0"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = "--concurrency"
+        assert unexpected_flags not in result.output
+
+def test_admin_api_standard_max_concurrent_automatic_scaling_not_specified():
+    """test_admin_api_standard_max_concurrent_automatic_scaling_not_specified"""
+    gcloud_version_describe_output = """
+runtime: python"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=10 "
+        assert expected_flags in result.output
+
+def test_admin_api_standard_max_concurrent_requests_not_specified():
+    """test_admin_api_standard_max_concurrent_requests_not_specified"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        minInstances: 1"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=10 "
+        assert expected_flags in result.output
+
+def test_admin_api_standard_max_concurrent_requests_specified_within_max_value():
+    """test_admin_api_standard_max_concurrent_requests_specified_within_max_value"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    maxConcurrentRequests: 999"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=999 "
+        assert expected_flags in result.output
+
+def test_admin_api_standard_max_concurrent_requests_specified_gt_max_value():
+    """test_admin_api_standard_max_concurrent_requests_specified_gt_max_value"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    maxConcurrentRequests: 1001"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--concurrency=1000 "
+        assert expected_flags in result.output
+
+def test_admin_api_standard_max_concurrent_requests_invalid_value():
+    """test_admin_api_standard_max_concurrent_requests_invalid_value"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    maxConcurrentRequests: 0"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = "--concurrency"
+        assert unexpected_flags not in result.output
+
+def test_admin_api_standard_when_no_scaling_feature_found():
+    """test_admin_api_standard_when_no_scaling_feature_found"""
+    gcloud_version_describe_output = """
+runtime: python
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = """--min-instances=0 \\
+  --max-instances=1000"""
+        assert unexpected_flags not in result.output
+
+def test_admin_api_standard_automatic_scaling_with_valid_min():
+    """test_admin_api_standard_automatic_scaling_with_valid_min"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        minInstances: 1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--min-instances=1 "
+        assert expected_flags in result.output
+
+def test_admin_api_standard_automatic_scaling_with_invalid_min_value():
+    """test_admin_api_standard_automatic_scaling_with_invalid_min_value"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        minInstances: -1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = "--min-instances\n"
+        assert unexpected_flags not in result.output
+
+def test_admin_api_standard_automatic_scaling_with_valid_max_value():
+    """test_admin_api_standard_automatic_scaling_with_valid_max_value"""
+
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        maxInstances: 999
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--max-instances=999 "
+        assert expected_flags in result.output
+
+def test_admin_api_standard_automatic_scaling_with_invalid_max_value():
+    """test_admin_api_standard_automatic_scaling_with_invalid_max_value"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        maxInstances: 1001
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--max-instances=1000 "
+        assert expected_flags in result.output
+
+def test_admin_api_flex_when_no_scaling_feature_found():
+    """test_admin_api_flex_when_no_scaling_feature_found"""
+    gcloud_version_describe_output = """
+env: flexible
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = """--min-instances=0 \\
+--max-instances=1000"""
+        assert unexpected_flags not in result.output
+
+def test_admin_api_flex_automatic_scaling_with_valid_min_value():
+    """test_admin_api_flex_automatic_scaling_with_valid_min_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    minTotalInstances: 1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--min-instances=1 "
+        assert expected_flags in result.output
+
+def test_admin_api_flex_automatic_scaling_with_invalid_min_value():
+    """test_admin_api_flex_automatic_scaling_with_invalid_min_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    minTotalInstances: -1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = "--min-instances\n"
+        assert unexpected_flags not in result.output
+
+def test_admin_api_flex_automatic_scaling_with_valid_max_value():
+    """test_admin_api_flex_automatic_scaling_with_valid_max_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    maxTotalInstances: 999
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--max-instances=999 "
+        assert expected_flags in result.output
+
+def test_admin_api_flex_automatic_scaling_with_invalid_max_value():
+    """test_admin_api_flex_automatic_scaling_with_invalid_max_value"""
+    gcloud_version_describe_output = """
+env: flexible
+automaticScaling:
+    maxTotalInstances: 1001
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--max-instances=1000 "
+        assert expected_flags in result.output
+
+def test_admin_api_manual_scaling_with_valid_instances_value():
+    """test_admin_api_manual_scaling_with_valid_instances_value"""
+    gcloud_version_describe_output = """
+manualScaling:
+   instances: 10
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = """--min-instances=10 \\
+  --max-instances=10"""
+        assert expected_flags in result.output
+
+def test_admin_api_manual_scaling_with_invalid_instances_value():
+    """test_admin_api_manual_scaling_with_invalid_instances_value"""
+    gcloud_version_describe_output = """
+manualScaling:
+   instances: 1001
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = """--min-instances=1000 \\
+  --max-instances=1000"""
+        assert expected_flags in result.output
+
+def test_admin_api_basic_scaling_with_valid_instances_value():
+    """test_admin_api_basic_scaling_with_valid_instances_value"""
+    gcloud_version_describe_output = """
+basicScaling:
+   maxInstances: 10
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = """--min-instances=10 \\
+  --max-instances=10"""
+        assert expected_flags in result.output
+
+def test_admin_api_basic_scaling_with_invalid_instances_value():
+    """test_admin_api_basic_scaling_with_invalid_instances_value"""
+    gcloud_version_describe_output = """
+basicScaling:
+   maxInstances: 1001
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = """--min-instances=1000 \\
+  --max-instances=1000"""
+        assert expected_flags in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_not_specified():
+    """test_admin_api_cpu_memory_standard_instance_class_not_specified"""
+    gcloud_version_describe_output = """
+runtime: python"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_cpu_flag = "--cpu="
+        unexpected_memory_flag = "--memory"
+        assert unexpected_cpu_flag not in result.output
+        assert unexpected_memory_flag not in result.output
+
+def test_admin_api_cpu_memory_standard_automatic_scaling_default():
+    """test_admin_api_cpu_memory_standard_automatic_scaling_default"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        minInstances: 1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=1"
+        expected_memory_flag = "--memory=0.5Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_manual_scaling_default():
+    """test_admin_api_cpu_memory_standard_manual_scaling_default"""
+    gcloud_version_describe_output = """
+manualScaling:
+    instances: 1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=2"
+        expected_memory_flag = "--memory=0.5Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_basic_scaling_default():
+    """test_admin_api_cpu_memory_standard_basic_scaling_default"""
+    gcloud_version_describe_output = """
+basicScaling:
+    maxInstances: 1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=2"
+        expected_memory_flag = "--memory=0.5Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_f1():
+    """test_admin_api_cpu_memory_standard_instance_class_f1"""
+    gcloud_version_describe_output = """
+instanceClass: F1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=1"
+        expected_memory_flag = "--memory=0.5Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_f2():
+    """test_admin_api_cpu_memory_standard_instance_class_f2"""
+    gcloud_version_describe_output = """
+instanceClass: F2
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=2"
+        expected_memory_flag = "--memory=0.5Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_f4():
+    """test_admin_api_cpu_memory_standard_instance_class_f4"""
+    gcloud_version_describe_output = """
+instanceClass: F4
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=4"
+        expected_memory_flag = "--memory=2Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_f4_1g():
+    """test_admin_api_cpu_memory_standard_instance_class_f4_1g"""
+    gcloud_version_describe_output = """
+instanceClass: F4_1G
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=4"
+        expected_memory_flag = "--memory=2Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_b1():
+    """test_admin_api_cpu_memory_standard_instance_class_b1"""
+    gcloud_version_describe_output = """
+instanceClass: B1
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=1"
+        expected_memory_flag = "--memory=0.5Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+
+def test_admin_api_cpu_memory_standard_instance_class_b2():
+    """test_admin_api_cpu_memory_standard_instance_class_b2"""
+    gcloud_version_describe_output = """
+instanceClass: B2
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=2"
+        expected_memory_flag = "--memory=0.5Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_b4():
+    """test_admin_api_cpu_memory_standard_instance_class_b4"""
+    gcloud_version_describe_output = """
+instanceClass: B4
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=4"
+        expected_memory_flag = "--memory=2Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_b4_1g():
+    """test_admin_api_cpu_memory_standard_instance_class_b4_1g"""
+    gcloud_version_describe_output = """
+instanceClass: B4_1G
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=4"
+        expected_memory_flag = "--memory=2Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_standard_instance_class_b8():
+    """test_admin_api_cpu_memory_standard_instance_class_b8"""
+    gcloud_version_describe_output = """
+instanceClass: B8
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=6"
+        expected_memory_flag = "--memory=4Gi"
+        assert expected_cpu_flag in result.output
+        assert expected_memory_flag in result.output
+
+def test_admin_api_cpu_memory_flex_cpu_memory_not_specified():
+    """test_admin_api_cpu_memory_flex_cpu_memory_not_specified"""
+    gcloud_version_describe_output = """
+env: flexible
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_cpu_flag = "--cpu="
+        unexpected_memory_flag = "--memory"
+        assert unexpected_cpu_flag not in result.output
+        assert unexpected_memory_flag not in result.output
+
+def test_admin_api_cpu_memory_flex_cpu_specified_lt_max():
+    """test_admin_api_cpu_memory_flex_cpu_specified_lt_max"""
+    gcloud_version_describe_output = """
+env: flexible
+resources:
+    cpu: 7
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=7"
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_cpu_memory_flex_cpu_specified_gt_max():
+    """test_admin_api_cpu_memory_flex_cpu_specified_gt_max"""
+    gcloud_version_describe_output = """
+env: flexible
+resources:
+    cpu: 9
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--cpu=8"
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_cpu_memory_flex_memory_gb_specified_lt_max():
+    """test_admin_api_cpu_memory_flex_memory_gb_specified_lt_max"""
+    gcloud_version_describe_output = """
+env: flexible
+resources:
+    memoryGb: 31
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--memory=31Gi"
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_cpu_memory_flex_memory_gb_specified_gt_max():
+    """test_admin_api_cpu_memory_flex_memory_gb_specified_gt_max"""
+    gcloud_version_describe_output = """
+env: flexible
+resources:
+    memoryGb: 33
+"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_cpu_flag = "--memory=32Gi"
+        assert expected_cpu_flag in result.output
+
+def test_admin_api_timeout_flex_env():
+    """test_admin_api_timeout_flex_env"""
+    gcloud_version_describe_output = """
+env: flexible"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--timeout=60m"
+        assert expected_flags in result.output
+
+def test_admin_api_timeout_standard_env_no_scaling_feature():
+    """test_admin_api_timeout_standard_env_no_scaling_feature"""
+    gcloud_version_describe_output = """
+runtime: python"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_flags = "--timeout"
+        assert unexpected_flags not in result.output
+
+def test_admin_api_timeout_standard_env_automatic_scaling():
+    """test_admin_api_timeout_standard_env_automatic_scaling"""
+    gcloud_version_describe_output = """
+automaticScaling:
+    standardSchedulerSettings:
+        minInstances: 1"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--timeout=10m"
+        assert expected_flags in result.output
+
+def test_admin_api_timeout_standard_env_manual_scaling():
+    """test_admin_api_timeout_standard_env_manual_scaling"""
+    gcloud_version_describe_output = """
+manualScaling:
+    instances: 1"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--timeout=60m"
+        assert expected_flags in result.output
+
+def test_admin_api_timeout_standard_env_basic_scaling():
+    """test_admin_api_timeout_standard_env_basic_scaling"""
+    gcloud_version_describe_output = """
+basicScaling:
+    maxInstances: 1"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_flags = "--timeout=60m"
+        assert expected_flags in result.output
+
+def test_admin_api_entrypoint_not_provided_from_cli_command_flag_all_runtimes():
+    """test_admin_api_entrypoint_not_provided_from_cli_command_flag_all_runtimes"""
+    # isolated filesystem is needed for entrypoint tests because it involves generating a Procfile.
+    with runner.isolated_filesystem():
+        gcloud_version_describe_output = """
+env: flexible
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            expected_output = "Warning: entrypoint for the app is not detected/provided, \
+if an entrypoint is needed to start the app, please use the `--command` flag to specify \
+the entrypoint for the App."
+            assert expected_output in result.output
+
+@pytest.mark.parametrize("runtime", PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=PYTHON_RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_admin_api_entrypoint_not_provided_from_cli_command_flag_python_runtime(runtime):
+    """test_admin_api_entrypoint_not_provided_from_cli_command_flag_python_runtime"""
+    # isolated filesystem is needed for entrypoint tests because it involves generating a Procfile.
+    with runner.isolated_filesystem():
+        gcloud_version_describe_output = f"""
+runtime: {runtime}
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            expected_output = f"""[Info] Default entrypoint point for {runtime} is : \
+"gunicorn -b :$PORT main:app", retry `app2run translate` with the --command="gunicorn -b \
+:$PORT main:app" flag.
+[Info] Add "gunicorn" as a dependency to requirements.txt because \
+it is used for the {runtime}'s default entrypoint "gunicorn -b :$PORT main:app\""""
+            assert expected_output in result.output
+
+@pytest.mark.parametrize("runtime", RUBY_RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=RUBY_RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_admin_api_entrypoint_not_provided_from_cli_command_flag_ruby_runtime(runtime):
+    """test_admin_api_entrypoint_not_provided_from_cli_command_flag_ruby_runtime"""
+    # isolated filesystem is needed for entrypoint tests because it involves generating a Procfile.
+    with runner.isolated_filesystem():
+        gcloud_version_describe_output = f"""
+runtime: {runtime}
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            expected_output = f"""[Info] Default entrypoint point for {runtime} is : \
+"bundle exec ruby app.rb -o 0.0.0.0", retry `app2run translate` with the --command="bundle \
+exec ruby app.rb -o 0.0.0.0" flag."""
+            assert expected_output in result.output
+
+def test_admin_api_entrypoint_provided_from_cli_command_flag_all_runtimes():
+    """test_admin_api_entrypoint_provided_from_cli_command_flag_all_runtimes"""
+    # isolated filesystem is needed for entrypoint tests because it involves generating a Procfile.
+    with runner.isolated_filesystem():
+        gcloud_version_describe_output = """
+env: flexible
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            unexpected_output = "Warning: entrypoint for the app is not detected/provided, \
+if an entrypoint is needed to start the app, please use the `--command` flag to specify \
+the entrypoint for the App."
+            assert unexpected_output in result.output
+
+def test_admin_api_do_not_generate_procfile_for_non_python_or_ruby_runtime():
+    """test_admin_api_do_not_generate_procfile_for_non_python_or_ruby_runtime"""
+    with runner.isolated_filesystem():
+        gcloud_version_describe_output = """
+    runtime: nodejs
+    """
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test', \
+                    '--command', 'ack'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            expected_flag = "--command=\"ack\""
+            assert expected_flag in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is False
+
+@pytest.mark.parametrize("runtime", RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_admin_api_entrypoint_found_from_cli_command(runtime):
+    """test_admin_api_entrypoint_found_from_cli_command"""
+    with runner.isolated_filesystem():
+        gcloud_version_describe_output = f"""
+    runtime: {runtime}
+    """
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test', \
+                    '--command', 'ack'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            un_expected_flag = "--command=\"ack\""
+            assert un_expected_flag not in result.output
+            procfile_exits = path.exists('Procfile')
+            assert procfile_exits is True
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: ack' in procfile_content
+
+@pytest.mark.parametrize("runtime", RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_admin_api_entrypoint_with_existing_procfile_with_entrypoint(runtime):
+    """test_admin_api_entrypoint_with_existing_procfile_with_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+web: foo
+            """)
+        gcloud_version_describe_output = f"""
+runtime: {runtime}
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test', \
+                    '--command', 'ack'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            un_expected_flag = "--command=\"ack\""
+            assert un_expected_flag not in result.output
+            expected_warning_msg = '[Warning] Entrypoint "ack" is not \
+found at existing Procfile, please add "web: ack" to the existing Procfile.'
+            assert expected_warning_msg in result.output
+            # Verify entrypoint at existing Procfile is not overriden.
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: ack' not in procfile_content
+
+@pytest.mark.parametrize("runtime", RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_admin_api_entrypoint_with_existing_procfile_no_entrypoint(runtime):
+    """test_admin_api_entrypoint_with_existing_procfile_no_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+            """)
+        gcloud_version_describe_output = f"""
+runtime: {runtime}
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test', \
+                    '--command', 'ack'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            expected_warning_msg = '[Warning] Entrypoint "ack" is not \
+found at existing Procfile, please add "web: ack" to the existing Procfile.'
+            assert expected_warning_msg in result.output
+            # Verify entrypoint at existing Procfile is not overriden.
+            with open('Procfile', 'r', encoding='utf8') as file:
+                procfile_content = file.read()
+                assert 'web: ack' not in procfile_content
+
+@pytest.mark.parametrize("runtime", RUNTIMES_WITH_PROCFILE_ENTRYPOINT, \
+    ids=RUNTIMES_WITH_PROCFILE_ENTRYPOINT)
+def test_admin_api_entrypoint_with_existing_procfile_w_matching_entrypoint(runtime):
+    """test_admin_api_entrypoint_with_existing_procfile_w_matching_entrypoint"""
+    with runner.isolated_filesystem():
+        with open('Procfile', 'w', encoding='utf8') as procfile:
+            procfile.write("""
+test: test
+web: ack
+            """)
+        gcloud_version_describe_output = f"""
+runtime: {runtime}
+"""
+        with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+            result = runner.invoke(cli, \
+                ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test', \
+                    '--command', 'ack'])
+            mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+            assert result.exit_code == 0
+            un_expected_flag = "--command=\"foo\""
+            assert un_expected_flag not in result.output
+            unexpected_warning_msg = '[Warning] Entrypoint "ack" is not \
+found at existing Procfile, please add "web: ack" to the existing Procfile.'
+            assert unexpected_warning_msg not in result.output
+
+def test_admin_api_cloud_sql_instances_single_valid():
+    """test_admin_api_cloud_sql_instances_single_valid"""
+    gcloud_version_describe_output = """
+betaSettings:
+  cloudSqlInstances: test"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_output_flag = "--add-cloudsql-instances=test"
+        assert expected_output_flag in result.output
+
+def test_admin_api_cloud_sql_instances_single_invalid():
+    """test_admin_api_cloud_sql_instances_single_invalid"""
+    gcloud_version_describe_output = """
+betaSettings:
+  cloudSqlInstances: test=tcp:8080"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        unexpected_output_flag = "--add-cloudsql-instances"
+        assert unexpected_output_flag not in result.output
+
+def test_admin_api_cloud_sql_instances_multiple_valid():
+    """test_admin_api_cloud_sql_instances_multiple_valid"""
+    gcloud_version_describe_output = """
+betaSettings:
+  cloudSqlInstances: test,foo"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_output_flag = "--add-cloudsql-instances=test,foo"
+        assert expected_output_flag in result.output
+
+def test_admin_api_cloud_sql_instances_mixed_valid_and_invalid():
+    """test_admin_api_cloud_sql_instances_mixed_valid_and_invalid"""
+    gcloud_version_describe_output = """
+betaSettings:
+  cloudSqlInstances: test,foo=tcp:8080"""
+    with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
+        result = runner.invoke(cli, \
+            ['translate', '--service', 'foo', '--version', 'bar', '--project', 'test'])
+        mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
+--project=test')
+        assert result.exit_code == 0
+        expected_output_flag = "--add-cloudsql-instances=test"
+        assert expected_output_flag in result.output

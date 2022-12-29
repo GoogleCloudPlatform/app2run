@@ -1,0 +1,272 @@
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+# # Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+unsupported:
+- path:
+    admin_api: resources.volumes
+    app_yaml: resources.volumes
+  severity: major
+  reason: Cloud Run does not support tmpfs volume mounts.
+- path:
+    admin_api: network.forwardedPorts
+    app_yaml: network.forwarded_ports
+  severity: major
+  reason: Cloud Run does not support port forwarding. No clients can connect to the app using the forwarded ports.
+- path:
+    admin_api: inboundServices
+    app_yaml: inbound_services
+  severity: major
+  reason: Cloud Run does not support GAE bundled services.
+- path:
+    admin_api: handlers
+    app_yaml: handlers
+  severity: major
+  reason: No support for routing based on url patterns.
+- path:
+    admin_api: errorHandlers
+    app_yaml: error_handlers
+  severity: major
+  reason: No support for routing based on url patterns.
+- path:
+    admin_api: appEngineApis
+    app_yaml: app_engine_apis
+  severity: major
+  reason: No App Engine bundled services.
+- path:
+    admin_api: buildEnvVariables
+    app_yaml: build_env_variables
+  severity: major
+  reason: No support for passing environment vars to buildpacks at the time of building.
+- path:
+    admin_api: resources.diskGb
+    app_yaml: resources.disk_size_gb
+  severity: minor
+  reason: No support for custom disk size.
+range_limited:
+- path:
+    admin_api: resources.cpu
+    app_yaml: resources.cpu
+  range:
+    max: 8
+    min: 0
+  severity: major
+  reason: Cloud Run supports max 8 CPUs.
+  flags:
+  - --cpu
+- path:
+    admin_api: resources.memoryGb
+    app_yaml: resources.memory_gb
+  range:
+    max: 32
+    min: 0
+  severity: major
+  reason: Cloud Run supports max 32Gi of memory.
+  flags:
+  - --memory
+- path:
+    admin_api: automaticScaling.standardSchedulerSettings.minInstances
+    app_yaml: automatic_scaling.min_instances
+  range:
+    max: 1000
+    min: 0
+  severity: major
+  reason: Cloud Run supports automatic scaling values between 0 and 1000.
+  flags:
+  - --min-instances
+- path:
+    admin_api: automaticScaling.standardSchedulerSettings.maxInstances
+    app_yaml: automatic_scaling.max_instances
+  range:
+    max: 1000
+    min: 0
+  severity: major
+  reason: Cloud Run supports automatic scaling values between 0 and 1000.
+  flags:
+  - --max-instances
+- path:
+    admin_api: automaticScaling.minTotalInstances
+    app_yaml: automatic_scaling.min_num_instances
+  range:
+    max: 1000
+    min: 0
+  severity: major
+  reason: Cloud Run supports automatic scaling values between 0 and 1000.
+  flags:
+  - --min-instances
+- path:
+    admin_api: automaticScaling.maxTotalInstances
+    app_yaml: automatic_scaling.max_num_instances
+  range:
+    max: 1000
+    min: 0
+  severity: major
+  reason: Cloud Run supports automatic scaling values between 0 and 1000.
+  flags:
+  - --max-instances
+- path:
+    admin_api: manualScaling.instances
+    app_yaml: manual_scaling.instances
+  range:
+    max: 1000
+    min: 0
+  severity: major
+  reason: Cloud Run supports manual scaling values between 0 and 1000.
+  flags:
+  - --min-instances
+  - --max-instances
+- path:
+    admin_api: basicScaling.maxInstances
+    app_yaml: basic_scaling.max_instances
+  range:
+    max: 1000
+    min: 0
+  severity: major
+  reason: Cloud Run supports basic scaling values between 0 and 1000.
+  flags:
+  - --min-instances
+  - --max-instances
+- path:
+    admin_api: automaticScaling.maxConcurrentRequests
+    app_yaml: automatic_scaling.max_concurrent_requests
+  range:
+    max: 1000
+    min: 1
+  severity: major
+  reason: Cloud Run supports concurrency values between 0 and 1000.
+  flags:
+  - --concurrency
+- path:
+    admin_api: automaticScaling.targetConcurrentRequests
+    app_yaml: automatic_scaling.target_concurrent_requests
+  range:
+    max: 1000
+    min: 1
+  severity: major
+  reason: Cloud Run supports concurrency values between 0 and 1000.
+  flags:
+  - --concurrency
+value_limited:
+- path:
+    admin_api: runtimeConfig.pythonVersion
+    app_yaml: runtime_config.python_version
+  known_values:
+    - 2
+    - 3
+  allowed_values:
+    - 3
+  severity: major
+  reason: Cloud Run supports Python 3 runtime only.
+- path:
+    admin_api: betaSettings.cloudSqlInstances
+    app_yaml: beta_settings.cloud_sql_instances
+  valid_format: ^((?!w?=tcp:[0-9]+).)*$
+  severity: major
+  reason: Cloud Run does not support TCP based CloudSQL instance configs.
+  flags:
+  - --add-cloudsql-instances
+- path:
+    admin_api: runtime
+    app_yaml: runtime
+  known_values:
+    - aspnetcore
+    - custom
+    - java
+    - python
+    - python27
+    - python37
+    - python38
+    - python39
+    - python310
+    - php
+    - php55
+    - php72
+    - php73
+    - php74
+    - php81
+    - ruby
+    - ruby25
+    - ruby26
+    - ruby27
+    - ruby30
+    - go
+    - go111
+    - go112
+    - go113
+    - go114
+    - go115
+    - go116
+    - nodejs
+    - nodejs8
+    - nodejs10
+    - nodejs12
+    - nodejs14
+    - nodejs16
+  allowed_values:
+    - aspnetcore
+    - custom
+    - java
+    - php
+    - php72
+    - php73
+    - php74
+    - php81
+    - python
+    - python37
+    - python38
+    - python39
+    - python310
+    - nodejs
+    - nodejs8
+    - nodejs10
+    - nodejs12
+    - nodejs14
+    - nodejs16
+    - go
+    - go112
+    - go113
+    - go114
+    - go115
+    - go116
+    - ruby
+    - ruby25
+    - ruby26
+    - ruby27
+    - ruby30
+  severity: major
+  reason: Cloud Run supports App Engine standard Gen2 runtimes and flexible runtimes.
+supported:
+- path:
+    admin_api: entrypoint.shell
+    app_yaml: entrypoint
+  flags:
+  - --command
+- path:
+    admin_api: envVariables
+    app_yaml: env_variables
+  flags:
+  - --set-env-vars
+- path:
+    admin_api: vpcAccessConnector.name
+    app_yaml: vpc_access_connector.name
+  flags:
+  - --vpc-connector
+- path:
+    admin_api: vpcAccessConnector.egressSettings
+    app_yaml: vpc_access_connector.egress_settings
+  flags:
+  - --vpc-egress
+- path:
+    admin_api: serviceAccount
+    app_yaml: service_account
+  flags:
+  - --service-account
