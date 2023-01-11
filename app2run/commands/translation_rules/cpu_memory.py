@@ -28,48 +28,44 @@ _DEFAULT_CPU_MEM_CONFIG: Dict = {
     ScalingTypeAppYaml.BASIC_SCALING: 'B2'
 }
 
-# Cloud Run cpu unit can only specified to one of: 1.0, 2.0, 4.0, 6.0, 8.0
 # See https://cloud.google.com/run/docs/configuring/cpu
-# For 1.0 CPU, memory must be between 512Mi and 4Gi inclusive.
-# For 4.0 CPU, memory must be between 2Gi and 16Gi inclusive.
-# For 6.0 CPU, memory must be between 4Gi and 24Gi inclusive.
 # See https://cloud.google.com/run/docs/configuring/memory-limits
 _INSTANCE_CLASS_MAP : Dict = {
     'F1': {
         'cpu': 1,
-        'memory': 0.5
+        'memory': 0.25
     },
     'F2': {
-        'cpu': 2,
+        'cpu': 1,
         'memory': 0.5
     },
     'F4': {
-        'cpu': 4,
-        'memory': 2
+        'cpu': 1,
+        'memory': 1
     },
     'F4_1G': {
-        'cpu': 4,
+        'cpu': 1,
         'memory': 2
     },
     'B1': {
         'cpu': 1,
-        'memory': 0.5
+        'memory': 0.25
     },
     'B2': {
-        'cpu': 2,
+        'cpu': 1,
         'memory': 0.5
     },
     'B4': {
-        'cpu': 4,
-        'memory': 2
+        'cpu': 1,
+        'memory': 1
     },
     'B4_1G': {
-        'cpu': 4,
+        'cpu': 1,
         'memory': 2
     },
     'B8': {
-        'cpu': 6,
-        'memory': 4
+        'cpu': 2,
+        'memory': 2
     }
 }
 def translate_app_resources(input_data: Dict, range_limited_features: Dict) -> List[str]:

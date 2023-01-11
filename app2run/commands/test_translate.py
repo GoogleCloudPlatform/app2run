@@ -490,7 +490,7 @@ automatic_scaling:
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
             expected_cpu_flag = "--cpu=1"
-            expected_memory_flag = "--memory=0.5Gi"
+            expected_memory_flag = "--memory=0.25Gi"
             assert expected_cpu_flag in result.output
             assert expected_memory_flag in result.output
 
@@ -504,7 +504,7 @@ manual_scaling:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_cpu_flag = "--cpu=2"
+            expected_cpu_flag = "--cpu=1"
             expected_memory_flag = "--memory=0.5Gi"
             assert expected_cpu_flag in result.output
             assert expected_memory_flag in result.output
@@ -519,7 +519,7 @@ basic_scaling:
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_cpu_flag = "--cpu=2"
+            expected_cpu_flag = "--cpu=1"
             expected_memory_flag = "--memory=0.5Gi"
             assert expected_cpu_flag in result.output
             assert expected_memory_flag in result.output
@@ -534,7 +534,7 @@ instance_class: F1
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
             expected_cpu_flag = "--cpu=1"
-            expected_memory_flag = "--memory=0.5Gi"
+            expected_memory_flag = "--memory=0.25Gi"
             assert expected_cpu_flag in result.output
             assert expected_memory_flag in result.output
 
@@ -547,7 +547,7 @@ instance_class: F2
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_cpu_flag = "--cpu=2"
+            expected_cpu_flag = "--cpu=1"
             expected_memory_flag = "--memory=0.5Gi"
             assert expected_cpu_flag in result.output
             assert expected_memory_flag in result.output
@@ -561,8 +561,8 @@ instance_class: F4
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_cpu_flag = "--cpu=4"
-            expected_memory_flag = "--memory=2Gi"
+            expected_cpu_flag = "--cpu=1"
+            expected_memory_flag = "--memory=1Gi"
             assert expected_cpu_flag in result.output
             assert expected_memory_flag in result.output
 
@@ -575,7 +575,7 @@ instance_class: F4_1G
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_cpu_flag = "--cpu=4"
+            expected_cpu_flag = "--cpu=1"
             expected_memory_flag = "--memory=2Gi"
             assert expected_cpu_flag in result.output
             assert expected_memory_flag in result.output
@@ -590,7 +590,7 @@ instance_class: B1
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
             expected_cpu_flag = "--cpu=1"
-            expected_memory_flag = "--memory=0.5Gi"
+            expected_memory_flag = "--memory=0.25Gi"
             assert expected_cpu_flag in result.output
             assert expected_memory_flag in result.output
 
@@ -603,7 +603,7 @@ instance_class: B2
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_cpu_flag = "--cpu=2"
+            expected_cpu_flag = "--cpu=1"
             expected_memory_flag = "--memory=0.5Gi"
             assert expected_cpu_flag in result.output
             assert expected_memory_flag in result.output
@@ -617,8 +617,8 @@ instance_class: B4
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_cpu_flag = "--cpu=4"
-            expected_memory_flag = "--memory=2Gi"
+            expected_cpu_flag = "--cpu=1"
+            expected_memory_flag = "--memory=1Gi"
             assert expected_cpu_flag in result.output
             assert expected_memory_flag in result.output
 
@@ -631,7 +631,7 @@ instance_class: B4_1G
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_cpu_flag = "--cpu=4"
+            expected_cpu_flag = "--cpu=1"
             expected_memory_flag = "--memory=2Gi"
             assert expected_cpu_flag in result.output
             assert expected_memory_flag in result.output
@@ -645,8 +645,8 @@ instance_class: B8
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
-            expected_cpu_flag = "--cpu=6"
-            expected_memory_flag = "--memory=4Gi"
+            expected_cpu_flag = "--cpu=2"
+            expected_memory_flag = "--memory=2Gi"
             assert expected_cpu_flag in result.output
             assert expected_memory_flag in result.output
 
@@ -1689,7 +1689,7 @@ automaticScaling:
 --project=test')
         assert result.exit_code == 0
         expected_cpu_flag = "--cpu=1"
-        expected_memory_flag = "--memory=0.5Gi"
+        expected_memory_flag = "--memory=0.25Gi"
         assert expected_cpu_flag in result.output
         assert expected_memory_flag in result.output
 
@@ -1705,7 +1705,7 @@ manualScaling:
         mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
 --project=test')
         assert result.exit_code == 0
-        expected_cpu_flag = "--cpu=2"
+        expected_cpu_flag = "--cpu=1"
         expected_memory_flag = "--memory=0.5Gi"
         assert expected_cpu_flag in result.output
         assert expected_memory_flag in result.output
@@ -1722,7 +1722,7 @@ basicScaling:
         mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
 --project=test')
         assert result.exit_code == 0
-        expected_cpu_flag = "--cpu=2"
+        expected_cpu_flag = "--cpu=1"
         expected_memory_flag = "--memory=0.5Gi"
         assert expected_cpu_flag in result.output
         assert expected_memory_flag in result.output
@@ -1739,7 +1739,7 @@ instanceClass: F1
 --project=test')
         assert result.exit_code == 0
         expected_cpu_flag = "--cpu=1"
-        expected_memory_flag = "--memory=0.5Gi"
+        expected_memory_flag = "--memory=0.25Gi"
         assert expected_cpu_flag in result.output
         assert expected_memory_flag in result.output
 
@@ -1754,7 +1754,7 @@ instanceClass: F2
         mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
 --project=test')
         assert result.exit_code == 0
-        expected_cpu_flag = "--cpu=2"
+        expected_cpu_flag = "--cpu=1"
         expected_memory_flag = "--memory=0.5Gi"
         assert expected_cpu_flag in result.output
         assert expected_memory_flag in result.output
@@ -1770,8 +1770,8 @@ instanceClass: F4
         mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
 --project=test')
         assert result.exit_code == 0
-        expected_cpu_flag = "--cpu=4"
-        expected_memory_flag = "--memory=2Gi"
+        expected_cpu_flag = "--cpu=1"
+        expected_memory_flag = "--memory=1Gi"
         assert expected_cpu_flag in result.output
         assert expected_memory_flag in result.output
 
@@ -1786,7 +1786,7 @@ instanceClass: F4_1G
         mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
 --project=test')
         assert result.exit_code == 0
-        expected_cpu_flag = "--cpu=4"
+        expected_cpu_flag = "--cpu=1"
         expected_memory_flag = "--memory=2Gi"
         assert expected_cpu_flag in result.output
         assert expected_memory_flag in result.output
@@ -1803,7 +1803,7 @@ instanceClass: B1
 --project=test')
         assert result.exit_code == 0
         expected_cpu_flag = "--cpu=1"
-        expected_memory_flag = "--memory=0.5Gi"
+        expected_memory_flag = "--memory=0.25Gi"
         assert expected_cpu_flag in result.output
         assert expected_memory_flag in result.output
 
@@ -1819,7 +1819,7 @@ instanceClass: B2
         mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
 --project=test')
         assert result.exit_code == 0
-        expected_cpu_flag = "--cpu=2"
+        expected_cpu_flag = "--cpu=1"
         expected_memory_flag = "--memory=0.5Gi"
         assert expected_cpu_flag in result.output
         assert expected_memory_flag in result.output
@@ -1835,8 +1835,8 @@ instanceClass: B4
         mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
 --project=test')
         assert result.exit_code == 0
-        expected_cpu_flag = "--cpu=4"
-        expected_memory_flag = "--memory=2Gi"
+        expected_cpu_flag = "--cpu=1"
+        expected_memory_flag = "--memory=1Gi"
         assert expected_cpu_flag in result.output
         assert expected_memory_flag in result.output
 
@@ -1851,7 +1851,7 @@ instanceClass: B4_1G
         mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
 --project=test')
         assert result.exit_code == 0
-        expected_cpu_flag = "--cpu=4"
+        expected_cpu_flag = "--cpu=1"
         expected_memory_flag = "--memory=2Gi"
         assert expected_cpu_flag in result.output
         assert expected_memory_flag in result.output
@@ -1867,8 +1867,8 @@ instanceClass: B8
         mock_popen.assert_called_with('gcloud app versions describe bar --service=foo \
 --project=test')
         assert result.exit_code == 0
-        expected_cpu_flag = "--cpu=6"
-        expected_memory_flag = "--memory=4Gi"
+        expected_cpu_flag = "--cpu=2"
+        expected_memory_flag = "--memory=2Gi"
         assert expected_cpu_flag in result.output
         assert expected_memory_flag in result.output
 
