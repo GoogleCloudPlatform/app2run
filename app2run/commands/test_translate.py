@@ -1000,7 +1000,7 @@ def test_vpc_access_connector_egress_settings_found():
         with open('app.yaml', 'w', encoding='utf8') as appyaml:
             appyaml.write("""
 vpc_access_connector:
-    egress_settings: foo
+    egress_setting: foo
             """)
             appyaml.close()
             result = runner.invoke(cli, ['translate'])
@@ -1217,7 +1217,7 @@ def test_admin_api_vpc_access_connector_egress_settings_found():
     """test_admin_api_vpc_access_connector_egress_settings_found"""
     gcloud_version_describe_output = """
 vpcAccessConnector:
-    egressSettings: foo
+    egressSetting: foo
 """
     with patch.object(os, 'popen', return_value=gcloud_version_describe_output) as mock_popen:
         result = runner.invoke(cli, \

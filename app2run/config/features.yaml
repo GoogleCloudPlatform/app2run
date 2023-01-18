@@ -261,8 +261,8 @@ supported:
   flags:
   - --vpc-connector
 - path:
-    admin_api: vpcAccessConnector.egressSettings
-    app_yaml: vpc_access_connector.egress_settings
+    admin_api: vpcAccessConnector.egressSetting
+    app_yaml: vpc_access_connector.egress_setting
   flags:
   - --vpc-egress
 - path:
