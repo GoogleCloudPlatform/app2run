@@ -20,8 +20,14 @@ $ pip install pytest
 
 ### run unit tests
 
+Run the following (inside a virtual env with all dependencies installed).
 ```
 $ py.test
+```
+
+Alternatively, run the following:
+```
+$ python3 -m pytest
 ```
 
 To run all tests at of a specific file:
