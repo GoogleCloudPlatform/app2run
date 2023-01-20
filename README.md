@@ -45,7 +45,7 @@ You can use a Python virtual environment to test the CLI with a specific version
 1. **[Recommended]** Install the latest release
 
     ```
-    $ pip install -e git+https://github.com/GoogleCloudPlatform/app2run.git@v0.1.0#egg=app2run
+    $ pip install -e git+https://github.com/GoogleCloudPlatform/app2run.git@v0.1.1#egg=app2run
     ```
 
     *[Alternative]* Install from source:
